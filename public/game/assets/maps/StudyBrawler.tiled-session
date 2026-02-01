@@ -1,0 +1,80 @@
+{
+    "activeFile": "starter-template.tmx",
+    "expandedProjectPaths": [
+        "."
+    ],
+    "fileStates": {
+        "TilesetElement.tsx": {
+            "scaleInDock": 1,
+            "scaleInEditor": 1
+        },
+        "TilesetFloor.tsx": {
+            "scaleInDock": 1,
+            "scaleInEditor": 1
+        },
+        "TilesetHouse.tsx": {
+            "scaleInDock": 1,
+            "scaleInEditor": 1
+        },
+        "TilesetNature.tsx": {
+            "scaleInDock": 1,
+            "scaleInEditor": 1
+        },
+        "TilesetWater.tsx": {
+            "scaleInDock": 1,
+            "scaleInEditor": 1
+        },
+        "forest.json": {
+            "scale": 1.0083147321428572,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": 447.7768553876806,
+                "y": 320.3364879074659
+            }
+        },
+        "forest.json#TilesetElement": {
+            "scaleInDock": 1
+        },
+        "forest.json#TilesetFloor": {
+            "scaleInDock": 1
+        },
+        "forest.json#TilesetHouse": {
+            "scaleInDock": 1
+        },
+        "forest.json#TilesetNature": {
+            "scaleInDock": 1
+        },
+        "forest.json#TilesetWater": {
+            "scaleInDock": 1
+        },
+        "starter-template.tmx": {
+            "scale": 1,
+            "selectedLayer": 1,
+            "viewCenter": {
+                "x": 466.5,
+                "y": 341
+            }
+        }
+    },
+    "last.exportedFilePath": "/Users/coreyacri/Herd/study-brawler/public/game/assets/maps",
+    "map.lastUsedExportFilter": "JSON map files (*.tmj *.json)",
+    "openFiles": [
+        "TilesetElement.tsx",
+        "TilesetFloor.tsx",
+        "TilesetHouse.tsx",
+        "TilesetNature.tsx",
+        "TilesetWater.tsx",
+        "starter-template.tmx",
+        "forest.json"
+    ],
+    "project": "StudyBrawler.tiled-project",
+    "recentFiles": [
+        "TilesetWater.tsx",
+        "TilesetNature.tsx",
+        "TilesetHouse.tsx",
+        "TilesetFloor.tsx",
+        "TilesetElement.tsx",
+        "forest.json",
+        "starter-template.tmx"
+    ]
+}
