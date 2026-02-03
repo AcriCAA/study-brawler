@@ -123,7 +123,7 @@ class ParseStudyMaterialJob implements ShouldQueue
             'difficulty' => 1,
             'order' => $material->levels()->count(),
             'background_theme' => 'forest',
-            'is_published' => !$material->uploaded_by_student, // Auto-publish for admin uploads only
+            'is_published' => true, // Auto-publish once approved
         ]);
 
         foreach ($content['questions'] ?? [] as $questionData) {

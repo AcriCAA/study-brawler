@@ -12,12 +12,25 @@ class StudentUploadController extends Controller
 {
     public function upload(Request $request): JsonResponse
     {
+        $student = $request->user();
+
+        // Only allow one pending upload at a time per student
+        $hasPending = StudyMaterial::where('student_id', $student->id)
+            ->where('approval_status', 'pending_approval')
+            ->exists();
+
+        if ($hasPending) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You already have a study guide waiting for approval. Please wait until it is reviewed before uploading another.',
+            ], 422);
+        }
+
         $validated = $request->validate([
             'title' => 'required|string|max:255',
             'file' => 'required|file|mimes:jpeg,png,gif,webp,pdf|max:51200', // 50MB max
         ]);
 
-        $student = $request->user();
         $file = $request->file('file');
 
         // Store the file

@@ -220,6 +220,13 @@ class StudyMaterialResource extends Resource
                     ->falseLabel('Teacher Uploads'),
             ])
             ->actions([
+                Tables\Actions\Action::make('view_file')
+                    ->label('View File')
+                    ->icon('heroicon-o-eye')
+                    ->color('gray')
+                    ->url(fn (StudyMaterial $record) => asset('storage/' . $record->file_path))
+                    ->openUrlInNewTab(),
+
                 Tables\Actions\Action::make('approve')
                     ->label('Approve')
                     ->icon('heroicon-o-check-circle')
@@ -227,7 +234,7 @@ class StudyMaterialResource extends Resource
                     ->visible(fn (StudyMaterial $record) => $record->approval_status === 'pending_approval')
                     ->requiresConfirmation()
                     ->modalHeading('Approve Study Material')
-                    ->modalDescription('This will approve the study material and start AI parsing to create a level.')
+                    ->modalDescription('This will approve the study material and start AI parsing to create a level. The level will be automatically published once ready.')
                     ->action(function (StudyMaterial $record) {
                         $record->update([
                             'approval_status' => 'approved',
