@@ -46,5 +46,62 @@ const GameConfig = {
         plant: 0x228b22,
         rock: 0x808080,
         star: 0xffd700,
+    },
+
+    // Authentication helpers
+    getToken() {
+        return localStorage.getItem('game_token');
+    },
+
+    setToken(token) {
+        localStorage.setItem('game_token', token);
+    },
+
+    clearToken() {
+        localStorage.removeItem('game_token');
+    },
+
+    isLoggedIn() {
+        return !!this.getToken();
+    },
+
+    // Authenticated fetch helper
+    async fetchAuth(endpoint, options = {}) {
+        const token = this.getToken();
+
+        const headers = {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            ...(options.headers || {}),
+        };
+
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
+
+        const response = await fetch(this.API_URL + endpoint, {
+            ...options,
+            headers,
+        });
+
+        // Handle 401 Unauthorized - token expired or invalid
+        if (response.status === 401) {
+            this.clearToken();
+            window.location.reload();
+            throw new Error('Session expired. Please log in again.');
+        }
+
+        return response;
+    },
+
+    // Logout helper
+    async logout() {
+        try {
+            await this.fetchAuth('/logout', { method: 'POST' });
+        } catch (e) {
+            // Ignore errors during logout
+        }
+        this.clearToken();
+        window.location.reload();
     }
 };

@@ -1492,11 +1492,9 @@ class GameScene extends Phaser.Scene {
         if (!student) return;
 
         try {
-            await fetch(GameConfig.API_URL + '/progress', {
+            await GameConfig.fetchAuth('/progress', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    student_id: student.id,
                     level_id: this.level.id,
                     score: this.score,
                     stars,

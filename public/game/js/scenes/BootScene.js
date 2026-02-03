@@ -4,15 +4,26 @@ class BootScene extends Phaser.Scene {
     }
 
     preload() {
+        // Show loading screen for asset loading
+        const loadingScreen = document.getElementById('loading-screen');
+        if (loadingScreen) {
+            loadingScreen.style.display = 'flex';
+        }
+
         // Update loading bar
         const loadingBar = document.getElementById('loading-bar');
 
         this.load.on('progress', (value) => {
-            loadingBar.style.width = (value * 100) + '%';
+            if (loadingBar) {
+                loadingBar.style.width = (value * 100) + '%';
+            }
         });
 
         this.load.on('complete', () => {
-            document.getElementById('loading-screen').style.display = 'none';
+            const screen = document.getElementById('loading-screen');
+            if (screen) {
+                screen.style.display = 'none';
+            }
         });
 
         // Load player sprite sheet (16x16 per frame, 4 columns x 7 rows)
@@ -228,33 +239,39 @@ class BootScene extends Phaser.Scene {
 
     async loadGameData() {
         try {
-            // Fetch students
-            const studentsResponse = await fetch(GameConfig.API_URL + '/students');
-            const studentsData = await studentsResponse.json();
-            this.registry.set('students', studentsData.data || []);
-
-            // Fetch brawlers
-            const brawlersResponse = await fetch(GameConfig.API_URL + '/brawlers');
+            // Fetch brawlers (using authenticated request)
+            const brawlersResponse = await GameConfig.fetchAuth('/brawlers');
             const brawlersData = await brawlersResponse.json();
             this.registry.set('brawlers', brawlersData.data || []);
 
-            // Fetch levels
-            const levelsResponse = await fetch(GameConfig.API_URL + '/levels');
+            // Fetch levels for this student (using authenticated request)
+            const levelsResponse = await GameConfig.fetchAuth('/levels');
             const levelsData = await levelsResponse.json();
             this.registry.set('levels', levelsData.data || []);
 
-            // Set default student (first one)
-            if (studentsData.data && studentsData.data.length > 0) {
-                this.registry.set('currentStudent', studentsData.data[0]);
+            // Fetch notifications (using authenticated request)
+            const notificationsResponse = await GameConfig.fetchAuth('/notifications');
+            const notificationsData = await notificationsResponse.json();
+            this.registry.set('notifications', notificationsData.data?.notifications || []);
+            this.registry.set('unreadNotificationCount', notificationsData.data?.unread_count || 0);
+
+            // Current student was already set during login
+            // Refresh it in case data changed
+            const meResponse = await GameConfig.fetchAuth('/me');
+            const meData = await meResponse.json();
+            if (meData.success) {
+                this.registry.set('currentStudent', meData.data);
             }
 
             this.scene.start('MenuScene');
         } catch (error) {
             console.error('Failed to load game data:', error);
-            // Start anyway with empty data
-            this.registry.set('students', []);
+            // If there's an auth error, it will redirect to login automatically
+            // For other errors, start anyway with empty data
             this.registry.set('brawlers', []);
             this.registry.set('levels', []);
+            this.registry.set('notifications', []);
+            this.registry.set('unreadNotificationCount', 0);
             this.scene.start('MenuScene');
         }
     }

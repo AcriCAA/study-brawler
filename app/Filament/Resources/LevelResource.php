@@ -4,11 +4,13 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\LevelResource\Pages;
 use App\Models\Level;
+use App\Models\Student;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Filament\Notifications\Notification;
 
 class LevelResource extends Resource
 {
@@ -69,6 +71,17 @@ class LevelResource extends Resource
                             ->label('Published')
                             ->helperText('Only published levels appear in the game'),
                     ])->columns(2),
+
+                Forms\Components\Section::make('Assigned Students')
+                    ->schema([
+                        Forms\Components\Select::make('students')
+                            ->label('Students who can access this level')
+                            ->multiple()
+                            ->relationship('students', 'name')
+                            ->preload()
+                            ->searchable(),
+                    ])
+                    ->visible(fn ($record) => $record !== null),
             ]);
     }
 
@@ -107,6 +120,12 @@ class LevelResource extends Resource
                     ->label('Questions')
                     ->counts('questions'),
 
+                Tables\Columns\TextColumn::make('students_count')
+                    ->label('Students')
+                    ->counts('students')
+                    ->badge()
+                    ->color('info'),
+
                 Tables\Columns\IconColumn::make('is_published')
                     ->boolean()
                     ->label('Published'),
@@ -129,13 +148,56 @@ class LevelResource extends Resource
                     ->label('Published'),
             ])
             ->actions([
+                Tables\Actions\Action::make('assignStudents')
+                    ->label('Assign')
+                    ->icon('heroicon-o-user-plus')
+                    ->color('info')
+                    ->form([
+                        Forms\Components\Select::make('student_ids')
+                            ->label('Select Students')
+                            ->multiple()
+                            ->options(Student::all()->pluck('name', 'id'))
+                            ->preload()
+                            ->searchable()
+                            ->default(fn (Level $record) => $record->students->pluck('id')->toArray()),
+                    ])
+                    ->action(function (Level $record, array $data) {
+                        $record->students()->sync($data['student_ids'] ?? []);
+
+                        Notification::make()
+                            ->title('Students Updated')
+                            ->body('Level assigned to ' . count($data['student_ids'] ?? []) . ' student(s).')
+                            ->success()
+                            ->send();
+                    }),
+
+                Tables\Actions\Action::make('assignToAll')
+                    ->label('Assign All')
+                    ->icon('heroicon-o-users')
+                    ->color('success')
+                    ->requiresConfirmation()
+                    ->modalHeading('Assign to All Students')
+                    ->modalDescription('This will assign this level to all students.')
+                    ->action(function (Level $record) {
+                        $studentIds = Student::pluck('id')->toArray();
+                        $record->students()->sync($studentIds);
+
+                        Notification::make()
+                            ->title('Assigned to All')
+                            ->body('Level assigned to ' . count($studentIds) . ' student(s).')
+                            ->success()
+                            ->send();
+                    }),
+
                 Tables\Actions\EditAction::make(),
+
                 Tables\Actions\Action::make('publish')
                     ->label('Publish')
                     ->icon('heroicon-o-check-circle')
                     ->color('success')
                     ->visible(fn (Level $record) => !$record->is_published)
                     ->action(fn (Level $record) => $record->update(['is_published' => true])),
+
                 Tables\Actions\Action::make('unpublish')
                     ->label('Unpublish')
                     ->icon('heroicon-o-x-circle')

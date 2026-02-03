@@ -174,8 +174,8 @@ class LevelSelectScene extends Phaser.Scene {
         }).setOrigin(0.5);
 
         try {
-            // Fetch full level data with questions
-            const response = await fetch(`${GameConfig.API_URL}/levels/${level.id}`);
+            // Fetch full level data with questions (using authenticated request)
+            const response = await GameConfig.fetchAuth(`/levels/${level.id}`);
             const data = await response.json();
 
             if (data.success) {

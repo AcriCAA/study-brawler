@@ -12,9 +12,13 @@ use Illuminate\Http\Request;
 
 class GameController extends Controller
 {
-    public function levels(): JsonResponse
+    public function levels(Request $request): JsonResponse
     {
-        $levels = Level::with('studyMaterial')
+        $student = $request->user();
+
+        // Get levels assigned to this student via pivot table
+        $levels = $student->assignedLevels()
+            ->with('studyMaterial')
             ->published()
             ->withCount('questions')
             ->orderBy('order')
@@ -37,12 +41,15 @@ class GameController extends Controller
         ]);
     }
 
-    public function level(Level $level): JsonResponse
+    public function level(Level $level, Request $request): JsonResponse
     {
-        if (!$level->is_published) {
+        $student = $request->user();
+
+        // Verify level is assigned to the authenticated student
+        if (!$level->is_published || !$student->assignedLevels()->where('level_id', $level->id)->exists()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Level not found or not published',
+                'message' => 'Level not found or not available',
             ], 404);
         }
 
@@ -73,87 +80,41 @@ class GameController extends Controller
         ]);
     }
 
-    public function students(): JsonResponse
-    {
-        $students = Student::with('brawlers')
-            ->get()
-            ->map(function ($student) {
-                return [
-                    'id' => $student->id,
-                    'name' => $student->name,
-                    'avatar' => $student->avatar,
-                    'total_stars' => $student->total_stars,
-                    'total_xp' => $student->total_xp,
-                    'selected_brawler' => $student->selectedBrawler()?->sprite_key ?? 'sparky',
-                ];
-            });
-
-        return response()->json([
-            'success' => true,
-            'data' => $students,
-        ]);
-    }
-
-    public function student(Student $student): JsonResponse
-    {
-        $progress = $student->progress()
-            ->with('level')
-            ->get()
-            ->map(function ($p) {
-                return [
-                    'level_id' => $p->level_id,
-                    'level_title' => $p->level->title,
-                    'stars_earned' => $p->stars_earned,
-                    'high_score' => $p->high_score,
-                    'attempts' => $p->attempts,
-                    'completed_at' => $p->completed_at?->toISOString(),
-                ];
-            });
-
-        $unlockedBrawlers = $student->brawlers->pluck('sprite_key');
-
-        return response()->json([
-            'success' => true,
-            'data' => [
-                'id' => $student->id,
-                'name' => $student->name,
-                'avatar' => $student->avatar,
-                'total_stars' => $student->total_stars,
-                'total_xp' => $student->total_xp,
-                'selected_brawler' => $student->selectedBrawler()?->sprite_key ?? 'sparky',
-                'unlocked_brawlers' => $unlockedBrawlers,
-                'progress' => $progress,
-            ],
-        ]);
-    }
-
     public function saveProgress(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'student_id' => 'required|exists:students,id',
             'level_id' => 'required|exists:levels,id',
             'score' => 'required|integer|min:0',
             'stars' => 'required|integer|min:0|max:3',
             'completed' => 'required|boolean',
         ]);
 
-        $student = Student::findOrFail($validated['student_id']);
+        $student = $request->user();
+        $level = Level::findOrFail($validated['level_id']);
+
+        // Verify level is assigned to the authenticated student
+        if (!$student->assignedLevels()->where('level_id', $level->id)->exists()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Level not found or not available',
+            ], 404);
+        }
 
         $progress = StudentProgress::updateOrCreate(
             [
-                'student_id' => $validated['student_id'],
+                'student_id' => $student->id,
                 'level_id' => $validated['level_id'],
             ],
             [
                 'high_score' => max(
                     $validated['score'],
-                    StudentProgress::where('student_id', $validated['student_id'])
+                    StudentProgress::where('student_id', $student->id)
                         ->where('level_id', $validated['level_id'])
                         ->value('high_score') ?? 0
                 ),
                 'stars_earned' => max(
                     $validated['stars'],
-                    StudentProgress::where('student_id', $validated['student_id'])
+                    StudentProgress::where('student_id', $student->id)
                         ->where('level_id', $validated['level_id'])
                         ->value('stars_earned') ?? 0
                 ),
@@ -216,11 +177,10 @@ class GameController extends Controller
     public function selectBrawler(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'student_id' => 'required|exists:students,id',
             'brawler_id' => 'required|exists:brawlers,id',
         ]);
 
-        $student = Student::findOrFail($validated['student_id']);
+        $student = $request->user();
         $brawler = Brawler::findOrFail($validated['brawler_id']);
 
         // Check if student has enough stars

@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Models\StudyMaterial;
+use App\Models\StudentNotification;
 use App\Services\ClaudeParserService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -22,6 +23,15 @@ class ParseStudyMaterialJob implements ShouldQueue
     public function handle(): void
     {
         $material = $this->studyMaterial;
+
+        // Only run if the material is approved
+        if (!$material->isApproved()) {
+            Log::info('ParseStudyMaterialJob skipped - material not approved', [
+                'study_material_id' => $material->id,
+                'approval_status' => $material->approval_status,
+            ]);
+            return;
+        }
 
         try {
             // Update status to show we're starting
@@ -55,7 +65,7 @@ class ParseStudyMaterialJob implements ShouldQueue
             ]);
 
             // Create level from parsed content
-            $this->createLevelFromParsedContent($material, $parsedContent);
+            $level = $this->createLevelFromParsedContent($material, $parsedContent);
 
             // Mark as complete
             $material->update([
@@ -64,6 +74,20 @@ class ParseStudyMaterialJob implements ShouldQueue
                 'parse_message' => 'Complete!',
                 'error_message' => null,
             ]);
+
+            // Create notification for student about new level
+            if ($material->student_id && $level) {
+                StudentNotification::create([
+                    'student_id' => $material->student_id,
+                    'type' => 'level_created',
+                    'title' => 'New Level Ready!',
+                    'message' => "A new level \"{$level->title}\" has been created from your study guide \"{$material->title}\". Go play it now!",
+                    'data' => [
+                        'study_material_id' => $material->id,
+                        'level_id' => $level->id,
+                    ],
+                ]);
+            }
 
         } catch (\Exception $e) {
             Log::error('ParseStudyMaterialJob failed: ' . $e->getMessage());
@@ -74,10 +98,24 @@ class ParseStudyMaterialJob implements ShouldQueue
                 'parse_message' => null,
                 'error_message' => $e->getMessage(),
             ]);
+
+            // Notify student of failure if this was a student upload
+            if ($material->student_id && $material->uploaded_by_student) {
+                StudentNotification::create([
+                    'student_id' => $material->student_id,
+                    'type' => 'parse_failed',
+                    'title' => 'Processing Failed',
+                    'message' => "There was a problem processing your study guide \"{$material->title}\". Please try uploading it again or contact your teacher.",
+                    'data' => [
+                        'study_material_id' => $material->id,
+                        'error' => $e->getMessage(),
+                    ],
+                ]);
+            }
         }
     }
 
-    protected function createLevelFromParsedContent(StudyMaterial $material, array $content): void
+    protected function createLevelFromParsedContent(StudyMaterial $material, array $content)
     {
         $level = $material->levels()->create([
             'title' => $content['title'] ?? $material->title,
@@ -85,7 +123,7 @@ class ParseStudyMaterialJob implements ShouldQueue
             'difficulty' => 1,
             'order' => $material->levels()->count(),
             'background_theme' => 'forest',
-            'is_published' => false,
+            'is_published' => !$material->uploaded_by_student, // Auto-publish for admin uploads only
         ]);
 
         foreach ($content['questions'] ?? [] as $questionData) {
@@ -99,5 +137,12 @@ class ParseStudyMaterialJob implements ShouldQueue
                 'hint' => $questionData['hint'] ?? null,
             ]);
         }
+
+        // Auto-assign level to the owning student
+        if ($material->student_id) {
+            $level->students()->attach($material->student_id);
+        }
+
+        return $level;
     }
 }

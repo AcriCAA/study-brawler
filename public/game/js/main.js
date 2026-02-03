@@ -16,7 +16,12 @@ window.addEventListener('load', () => {
             antialias: false,  // Disable anti-aliasing for pixel art
             pixelArt: true,
         },
+        dom: {
+            createContainer: true  // Enable DOM element support for login form
+        },
         scene: [
+            LoginCheckScene,
+            LoginScene,
             BootScene,
             MenuScene,
             LevelSelectScene,
