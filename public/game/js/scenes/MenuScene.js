@@ -62,18 +62,23 @@ class MenuScene extends Phaser.Scene {
             this.scene.start('LevelSelectScene');
         });
 
+        // Change Character button
+        this.createButton(width / 2, 375, 'CHANGE CHARACTER', () => {
+            this.scene.start('CharacterSelectScene');
+        }, 0xffd700);
+
         // Brawlers button
-        this.createButton(width / 2, 375, 'BRAWLERS', () => {
+        this.createButton(width / 2, 440, 'BRAWLERS', () => {
             this.showBrawlers();
         }, 0x9370db);
 
         // Upload Study Guide button
-        this.createButton(width / 2, 440, 'UPLOAD STUDY GUIDE', () => {
+        this.createButton(width / 2, 505, 'UPLOAD STUDY GUIDE', () => {
             this.showUploadModal();
         }, 0x32cd32);
 
         // Logout button (smaller, at bottom)
-        this.createSmallButton(width / 2, 520, 'LOGOUT', () => {
+        this.createSmallButton(width / 2, 585, 'LOGOUT', () => {
             GameConfig.logout();
         }, 0xff6666);
 

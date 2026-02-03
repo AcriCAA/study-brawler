@@ -23,6 +23,7 @@ window.addEventListener('load', () => {
             LoginCheckScene,
             LoginScene,
             BootScene,
+            CharacterSelectScene,
             MenuScene,
             LevelSelectScene,
             GameScene,

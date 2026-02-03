@@ -26,10 +26,18 @@ class BootScene extends Phaser.Scene {
             }
         });
 
-        // Load player sprite sheet (16x16 per frame, 4 columns x 7 rows)
-        this.load.spritesheet('player', '/game/assets/characters/player.png', {
-            frameWidth: 16,
-            frameHeight: 16
+        // All available character sprite keys (all 64x112, 4 cols x 7 rows of 16x16 frames)
+        this.characterKeys = [
+            'player', 'fighterred', 'girl', 'gladiator', 'goldknight', 'master',
+            'monkey', 'monkeyboxer', 'ninja', 'ninjared', 'socerer', 'woman'
+        ];
+
+        // Load all character sprite sheets
+        this.characterKeys.forEach(key => {
+            this.load.spritesheet(key, `/game/assets/characters/${key}.png`, {
+                frameWidth: 16,
+                frameHeight: 16
+            });
         });
 
         // Load boss sprite sheets
@@ -126,8 +134,11 @@ class BootScene extends Phaser.Scene {
         this.load.image('tileset_house', '/game/assets/tilesets/TilesetHouse.png');
         this.load.image('tileset_water', '/game/assets/tilesets/TilesetWater.png');
 
-        // Load default map (will be replaced when you create maps in Tiled)
-        this.load.tilemapTiledJSON('map_forest', '/game/assets/maps/forest.json');
+        // Load all available maps
+        const availableMaps = ['forest', 'dungeon', 'village', 'epiclevel'];
+        availableMaps.forEach(mapKey => {
+            this.load.tilemapTiledJSON('map_' + mapKey, '/game/assets/maps/' + mapKey + '.json');
+        });
 
         // Load audio files
         this.load.audio('bgm_battle', '/game/assets/audio/bgm_battle.ogg');
@@ -142,40 +153,42 @@ class BootScene extends Phaser.Scene {
     }
 
     create() {
-        // Create player animations
-        this.anims.create({
-            key: 'player_idle_down',
-            frames: this.anims.generateFrameNumbers('player', { start: 0, end: 0 }),
-            frameRate: 8,
-            repeat: -1
-        });
+        // Create animations for all character sprites (same frame layout)
+        this.characterKeys.forEach(key => {
+            this.anims.create({
+                key: key + '_idle_down',
+                frames: this.anims.generateFrameNumbers(key, { start: 0, end: 0 }),
+                frameRate: 8,
+                repeat: -1
+            });
 
-        this.anims.create({
-            key: 'player_walk_down',
-            frames: this.anims.generateFrameNumbers('player', { start: 0, end: 3 }),
-            frameRate: 8,
-            repeat: -1
-        });
+            this.anims.create({
+                key: key + '_walk_down',
+                frames: this.anims.generateFrameNumbers(key, { start: 0, end: 3 }),
+                frameRate: 8,
+                repeat: -1
+            });
 
-        this.anims.create({
-            key: 'player_walk_right',
-            frames: this.anims.generateFrameNumbers('player', { start: 4, end: 7 }),
-            frameRate: 8,
-            repeat: -1
-        });
+            this.anims.create({
+                key: key + '_walk_right',
+                frames: this.anims.generateFrameNumbers(key, { start: 4, end: 7 }),
+                frameRate: 8,
+                repeat: -1
+            });
 
-        this.anims.create({
-            key: 'player_walk_up',
-            frames: this.anims.generateFrameNumbers('player', { start: 8, end: 11 }),
-            frameRate: 8,
-            repeat: -1
-        });
+            this.anims.create({
+                key: key + '_walk_up',
+                frames: this.anims.generateFrameNumbers(key, { start: 8, end: 11 }),
+                frameRate: 8,
+                repeat: -1
+            });
 
-        this.anims.create({
-            key: 'player_walk_left',
-            frames: this.anims.generateFrameNumbers('player', { start: 12, end: 15 }),
-            frameRate: 8,
-            repeat: -1
+            this.anims.create({
+                key: key + '_walk_left',
+                frames: this.anims.generateFrameNumbers(key, { start: 12, end: 15 }),
+                frameRate: 8,
+                repeat: -1
+            });
         });
 
         // Create boss animations
@@ -233,6 +246,15 @@ class BootScene extends Phaser.Scene {
             repeat: 0
         });
 
+        // Restore saved character selection
+        const savedCharacter = localStorage.getItem('selected_character');
+        if (savedCharacter) {
+            this.registry.set('selectedCharacter', savedCharacter);
+        }
+
+        // Store character keys in registry for CharacterSelectScene
+        this.registry.set('characterKeys', this.characterKeys);
+
         // Fetch initial game data
         this.loadGameData();
     }
@@ -263,7 +285,12 @@ class BootScene extends Phaser.Scene {
                 this.registry.set('currentStudent', meData.data);
             }
 
-            this.scene.start('MenuScene');
+            // If no character selected yet, go to character select first
+            if (!this.registry.get('selectedCharacter')) {
+                this.scene.start('CharacterSelectScene');
+            } else {
+                this.scene.start('MenuScene');
+            }
         } catch (error) {
             console.error('Failed to load game data:', error);
             // If there's an auth error, it will redirect to login automatically
@@ -272,7 +299,12 @@ class BootScene extends Phaser.Scene {
             this.registry.set('levels', []);
             this.registry.set('notifications', []);
             this.registry.set('unreadNotificationCount', 0);
-            this.scene.start('MenuScene');
+
+            if (!this.registry.get('selectedCharacter')) {
+                this.scene.start('CharacterSelectScene');
+            } else {
+                this.scene.start('MenuScene');
+            }
         }
     }
 }

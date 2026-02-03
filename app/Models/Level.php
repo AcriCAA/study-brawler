@@ -19,6 +19,7 @@ class Level extends Model
         'difficulty',
         'order',
         'background_theme',
+        'map_key',
         'is_published',
     ];
 

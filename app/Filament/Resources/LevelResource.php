@@ -63,6 +63,18 @@ class LevelResource extends Resource
                             ->default('forest')
                             ->required(),
 
+                        Forms\Components\Select::make('map_key')
+                            ->label('Map')
+                            ->options([
+                                'forest' => 'Forest',
+                                'dungeon' => 'Dungeon',
+                                'village' => 'Village',
+                                'epiclevel' => 'Epic Level',
+                            ])
+                            ->default('forest')
+                            ->required()
+                            ->helperText('Select the Tiled map to use for this level'),
+
                         Forms\Components\TextInput::make('order')
                             ->numeric()
                             ->default(0),

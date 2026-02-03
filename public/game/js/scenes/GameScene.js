@@ -104,10 +104,14 @@ class GameScene extends Phaser.Scene {
     createArenaMap() {
         const { width, height } = this.cameras.main;
 
+        // Determine which map to load based on level data
+        const mapKey = this.level.map_key || 'forest';
+        const mapCacheKey = 'map_' + mapKey;
+
         // Try to load tilemap if available
-        if (this.cache.tilemap.exists('map_forest')) {
+        if (this.cache.tilemap.exists(mapCacheKey)) {
             // Create tilemap from JSON
-            this.map = this.make.tilemap({ key: 'map_forest' });
+            this.map = this.make.tilemap({ key: mapCacheKey });
 
             // Add all tilesets - names must match tileset names in the JSON
             const tilesets = [
@@ -134,6 +138,8 @@ class GameScene extends Phaser.Scene {
                 if (this.decorationLayer) {
                     this.decorationLayer.setScale(this.worldScale);
                     this.decorationLayer.setDepth(1);
+                    // Mark all non-empty tiles as collidable
+                    this.decorationLayer.setCollisionByExclusion([-1]);
                 }
 
                 this.aboveLayer = this.map.createLayer('Above', tilesets, 0, 0);
@@ -160,14 +166,17 @@ class GameScene extends Phaser.Scene {
         const startX = this.worldWidth / 2;
         const startY = this.worldHeight / 2;
 
+        // Get selected character sprite key
+        this.characterKey = this.registry.get('selectedCharacter') || 'player';
+
         // Player shadow
         this.playerShadow = this.add.ellipse(startX, startY + 24, 36, 14, 0x000000, 0.3);
         this.playerShadow.setDepth(99);
 
-        // Create player sprite using the loaded spritesheet
-        this.player = this.add.sprite(startX, startY, 'player');
+        // Create player sprite using the selected character spritesheet
+        this.player = this.add.sprite(startX, startY, this.characterKey);
         this.player.setScale(this.worldScale); // Match world scale for pixel art look
-        this.player.play('player_idle_down');
+        this.player.play(this.characterKey + '_idle_down');
         this.player.setDepth(100);
 
         // Movement bounds (entire world with padding)
@@ -191,7 +200,7 @@ class GameScene extends Phaser.Scene {
 
         switch (state) {
             case 'idle':
-                this.player.play('player_idle_down');
+                this.player.play(this.characterKey + '_idle_down');
                 // Gentle bobbing
                 this.tweens.killTweensOf(this.player);
                 this.tweens.add({
@@ -206,7 +215,7 @@ class GameScene extends Phaser.Scene {
 
             case 'walking':
                 // Direction-based walking animation
-                const animKey = `player_walk_${this.playerDirection}`;
+                const animKey = `${this.characterKey}_walk_${this.playerDirection}`;
                 if (this.player.anims.currentAnim?.key !== animKey) {
                     this.player.play(animKey);
                 }
@@ -344,6 +353,17 @@ class GameScene extends Phaser.Scene {
                         tooClose = true;
                         break;
                     }
+                }
+
+                // Check that boss doesn't overlap decoration tiles
+                if (!tooClose) {
+                    const bossRadius = 40 * this.worldScale;
+                    const onObstacle = this.checkTileCollision(x, y) ||
+                        this.checkTileCollision(x - bossRadius, y) ||
+                        this.checkTileCollision(x + bossRadius, y) ||
+                        this.checkTileCollision(x, y - bossRadius) ||
+                        this.checkTileCollision(x, y + bossRadius);
+                    if (onObstacle) tooClose = true;
                 }
 
                 if (!tooClose) break;
@@ -1139,6 +1159,33 @@ class GameScene extends Phaser.Scene {
         });
     }
 
+    // Check if a world position collides with a decoration tile
+    checkTileCollision(worldX, worldY) {
+        if (!this.decorationLayer || !this.map) return false;
+
+        // Convert world coordinates to tile coordinates (accounting for scale)
+        const tileX = this.map.worldToTileX(worldX / this.worldScale);
+        const tileY = this.map.worldToTileY(worldY / this.worldScale);
+
+        const tile = this.decorationLayer.getTileAt(tileX, tileY);
+        return tile !== null && tile.index !== -1;
+    }
+
+    // Check collision for a rectangular area (player hitbox)
+    checkAreaCollision(worldX, worldY) {
+        // Use a small hitbox at the player's feet
+        const halfW = 6 * this.worldScale;
+        const halfH = 4 * this.worldScale;
+        const footY = worldY + 8 * this.worldScale; // Offset to feet
+
+        // Check corners and center of the hitbox
+        return this.checkTileCollision(worldX - halfW, footY - halfH) ||
+               this.checkTileCollision(worldX + halfW, footY - halfH) ||
+               this.checkTileCollision(worldX - halfW, footY + halfH) ||
+               this.checkTileCollision(worldX + halfW, footY + halfH) ||
+               this.checkTileCollision(worldX, footY);
+    }
+
     setupControls() {
         // WASD/Arrow keys for manual movement
         this.cursors = this.input.keyboard.createCursorKeys();
@@ -1282,10 +1329,15 @@ class GameScene extends Phaser.Scene {
             let newX = Phaser.Math.Clamp(this.player.x + velocityX * delta, this.playerBounds.minX, this.playerBounds.maxX);
             let newY = Phaser.Math.Clamp(this.player.y + velocityY * delta, this.playerBounds.minY, this.playerBounds.maxY);
 
-            this.player.x = newX;
-            this.player.y = newY;
-            this.playerShadow.x = newX;
-            this.playerShadow.y = newY + 24;
+            // Check X and Y axes independently for wall sliding
+            if (!this.checkAreaCollision(newX, this.player.y)) {
+                this.player.x = newX;
+            }
+            if (!this.checkAreaCollision(this.player.x, newY)) {
+                this.player.y = newY;
+            }
+            this.playerShadow.x = this.player.x;
+            this.playerShadow.y = this.player.y + 24;
         } else if (this.playerState === 'walking') {
             this.playPlayerAnimation('idle');
         }
