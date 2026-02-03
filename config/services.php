@@ -38,5 +38,8 @@ return [
     'anthropic' => [
         'api_key' => env('ANTHROPIC_API_KEY'),
     ],
+    'filament' =>[
+      'panel_access_emails'=> env('FILAMENT_PANEL_ACCESS_EMAILS'),
+    ],
 
 ];

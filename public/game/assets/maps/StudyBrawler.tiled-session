@@ -51,29 +51,29 @@
             "scale": 1,
             "selectedLayer": 1,
             "viewCenter": {
-                "x": 466.5,
-                "y": 341
+                "x": 463.5,
+                "y": 334
             }
         }
     },
     "last.exportedFilePath": "/Users/coreyacri/Herd/study-brawler/public/game/assets/maps",
     "map.lastUsedExportFilter": "JSON map files (*.tmj *.json)",
     "openFiles": [
-        "TilesetElement.tsx",
+        "starter-template.tmx",
+        "forest.json",
         "TilesetFloor.tsx",
+        "TilesetElement.tsx",
         "TilesetHouse.tsx",
         "TilesetNature.tsx",
-        "TilesetWater.tsx",
-        "starter-template.tmx",
-        "forest.json"
+        "TilesetWater.tsx"
     ],
     "project": "StudyBrawler.tiled-project",
     "recentFiles": [
         "TilesetWater.tsx",
         "TilesetNature.tsx",
         "TilesetHouse.tsx",
-        "TilesetFloor.tsx",
         "TilesetElement.tsx",
+        "TilesetFloor.tsx",
         "forest.json",
         "starter-template.tmx"
     ]
