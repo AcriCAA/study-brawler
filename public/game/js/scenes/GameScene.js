@@ -68,7 +68,8 @@ class GameScene extends Phaser.Scene {
 
     setupAudio() {
         // Background music
-        this.bgMusic = this.sound.add('bgm_battle', {
+        const bgmKey = this.level.bgm_key || 'bgm_battle';
+        this.bgMusic = this.sound.add(bgmKey, {
             volume: 0.3,
             loop: true
         });

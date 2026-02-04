@@ -75,6 +75,22 @@ class LevelResource extends Resource
                             ->required()
                             ->helperText('Select the Tiled map to use for this level'),
 
+                        Forms\Components\Select::make('bgm_key')
+                            ->label('Background Music')
+                            ->options(function () {
+                                $files = glob(public_path('game/assets/audio/bgm_*.ogg'));
+                                $options = [];
+                                foreach ($files as $file) {
+                                    $key = pathinfo($file, PATHINFO_FILENAME);
+                                    $label = str_replace(['bgm_', '_'], ['', ' '], $key);
+                                    $options[$key] = ucwords($label);
+                                }
+                                return $options;
+                            })
+                            ->default('bgm_battle')
+                            ->required()
+                            ->helperText('Select the background music track for this level'),
+
                         Forms\Components\TextInput::make('order')
                             ->numeric()
                             ->default(0),

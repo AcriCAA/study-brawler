@@ -20,6 +20,7 @@ class Level extends Model
         'order',
         'background_theme',
         'map_key',
+        'bgm_key',
         'is_published',
     ];
 
