@@ -67,18 +67,13 @@ class MenuScene extends Phaser.Scene {
             this.scene.start('CharacterSelectScene');
         }, 0xffd700);
 
-        // Brawlers button
-        this.createButton(width / 2, 440, 'BRAWLERS', () => {
-            this.showBrawlers();
-        }, 0x9370db);
-
         // Upload Study Guide button
-        this.createButton(width / 2, 505, 'UPLOAD STUDY GUIDE', () => {
+        this.createButton(width / 2, 440, 'UPLOAD STUDY GUIDE', () => {
             this.showUploadModal();
         }, 0x32cd32);
 
         // Logout button (smaller, at bottom)
-        this.createSmallButton(width / 2, 585, 'LOGOUT', () => {
+        this.createSmallButton(width / 2, 520, 'LOGOUT', () => {
             GameConfig.logout();
         }, 0xff6666);
 
@@ -512,75 +507,4 @@ class MenuScene extends Phaser.Scene {
         }
     }
 
-    showBrawlers() {
-        const brawlers = this.registry.get('brawlers') || [];
-        const student = this.registry.get('currentStudent');
-
-        // Create overlay
-        const overlay = this.add.rectangle(GameConfig.WIDTH / 2, GameConfig.HEIGHT / 2, GameConfig.WIDTH, GameConfig.HEIGHT, 0x000000, 0.8);
-        overlay.setInteractive();
-
-        const panel = this.add.container(GameConfig.WIDTH / 2, GameConfig.HEIGHT / 2);
-
-        // Title
-        const title = this.add.text(0, -220, 'YOUR BRAWLERS', {
-            fontFamily: 'Arial Black',
-            fontSize: '28px',
-            color: '#ffd700',
-        }).setOrigin(0.5);
-        panel.add(title);
-
-        // Brawler cards
-        const startX = -250;
-        brawlers.forEach((brawler, index) => {
-            const x = startX + (index % 5) * 120;
-            const y = -100 + Math.floor(index / 5) * 150;
-
-            const unlocked = student && student.total_stars >= brawler.unlock_stars_required;
-
-            // Card background
-            const cardBg = this.add.graphics();
-            cardBg.fillStyle(unlocked ? parseInt(brawler.color.replace('#', '0x')) : 0x333333, 0.8);
-            cardBg.fillRoundedRect(x - 45, y - 45, 90, 120, 8);
-            panel.add(cardBg);
-
-            // Brawler circle
-            const circle = this.add.circle(x, y - 10, 30, unlocked ? parseInt(brawler.color.replace('#', '0x')) : 0x666666);
-            panel.add(circle);
-
-            // Name
-            const name = this.add.text(x, y + 35, brawler.name, {
-                fontFamily: 'Arial',
-                fontSize: '12px',
-                color: unlocked ? '#ffffff' : '#666666',
-            }).setOrigin(0.5);
-            panel.add(name);
-
-            // Stars required
-            if (!unlocked) {
-                const req = this.add.text(x, y + 55, `${brawler.unlock_stars_required} stars`, {
-                    fontFamily: 'Arial',
-                    fontSize: '10px',
-                    color: '#ffd700',
-                }).setOrigin(0.5);
-                panel.add(req);
-            }
-        });
-
-        // Close button
-        const closeBtn = this.add.text(0, 200, 'CLOSE', {
-            fontFamily: 'Arial Black',
-            fontSize: '20px',
-            color: '#ff6666',
-            backgroundColor: '#000000',
-            padding: { x: 20, y: 10 },
-        }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-
-        closeBtn.on('pointerdown', () => {
-            overlay.destroy();
-            panel.destroy();
-        });
-
-        panel.add(closeBtn);
-    }
 }

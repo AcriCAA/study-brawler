@@ -113,14 +113,23 @@ class GameScene extends Phaser.Scene {
             // Create tilemap from JSON
             this.map = this.make.tilemap({ key: mapCacheKey });
 
-            // Add all tilesets - names must match tileset names in the JSON
-            const tilesets = [
-                this.map.addTilesetImage('TilesetFloor', 'tileset_floor'),
-                this.map.addTilesetImage('TilesetElement', 'tileset_element'),
-                this.map.addTilesetImage('TilesetNature', 'tileset_nature'),
-                this.map.addTilesetImage('TilesetHouse', 'tileset_house'),
-                this.map.addTilesetImage('TilesetWater', 'tileset_water')
-            ].filter(t => t !== null);
+            // Add all tilesets - map tileset names to loaded image keys
+            const tilesetImageMap = {
+                'TilesetFloor': 'tileset_floor',
+                'TilesetElement': 'tileset_element',
+                'TilesetNature': 'tileset_nature',
+                'TilesetHouse': 'tileset_house',
+                'TilesetWater': 'tileset_water'
+            };
+
+            const tilesets = [];
+            this.map.tilesets.forEach(ts => {
+                const baseName = Object.keys(tilesetImageMap).find(name => ts.name.startsWith(name));
+                if (baseName) {
+                    const added = this.map.addTilesetImage(ts.name, tilesetImageMap[baseName]);
+                    if (added) tilesets.push(added);
+                }
+            });
 
             // Calculate world size (map size * scale)
             this.worldWidth = this.map.widthInPixels * this.worldScale;
@@ -161,10 +170,35 @@ class GameScene extends Phaser.Scene {
         }
     }
 
+    findSafeSpawnPoint(preferX, preferY) {
+        // If preferred position is clear, use it
+        if (!this.checkAreaCollision(preferX, preferY)) {
+            return { x: preferX, y: preferY };
+        }
+
+        // Spiral outward from preferred position to find a clear spot
+        const step = 16 * this.worldScale;
+        for (let radius = step; radius < this.worldWidth / 2; radius += step) {
+            for (let angle = 0; angle < Math.PI * 2; angle += Math.PI / 8) {
+                const testX = preferX + Math.cos(angle) * radius;
+                const testY = preferY + Math.sin(angle) * radius;
+
+                if (testX > 0 && testX < this.worldWidth &&
+                    testY > 0 && testY < this.worldHeight &&
+                    !this.checkAreaCollision(testX, testY)) {
+                    return { x: testX, y: testY };
+                }
+            }
+        }
+
+        return { x: preferX, y: preferY };
+    }
+
     createPlayer() {
-        // Player starts in center of the world
-        const startX = this.worldWidth / 2;
-        const startY = this.worldHeight / 2;
+        // Player starts in center of the world, adjusted to avoid collision
+        const spawn = this.findSafeSpawnPoint(this.worldWidth / 2, this.worldHeight / 2);
+        const startX = spawn.x;
+        const startY = spawn.y;
 
         // Get selected character sprite key
         this.characterKey = this.registry.get('selectedCharacter') || 'player';
@@ -975,9 +1009,10 @@ class GameScene extends Phaser.Scene {
         // Kill ALL tweens on the player to prevent any conflicts
         this.tweens.killTweensOf(this.player);
 
-        // Reset player position to world center
-        this.player.x = this.worldWidth / 2;
-        this.player.y = this.worldHeight / 2;
+        // Reset player position to world center, avoiding collision
+        const spawn = this.findSafeSpawnPoint(this.worldWidth / 2, this.worldHeight / 2);
+        this.player.x = spawn.x;
+        this.player.y = spawn.y;
         this.player.angle = 0;
         this.player.alpha = 1;
         this.player.scaleX = 0;
@@ -1161,14 +1196,11 @@ class GameScene extends Phaser.Scene {
 
     // Check if a world position collides with a decoration tile
     checkTileCollision(worldX, worldY) {
-        if (!this.decorationLayer || !this.map) return false;
+        if (!this.decorationLayer) return false;
 
-        // Convert world coordinates to tile coordinates (accounting for scale)
-        const tileX = this.map.worldToTileX(worldX / this.worldScale);
-        const tileY = this.map.worldToTileY(worldY / this.worldScale);
-
-        const tile = this.decorationLayer.getTileAt(tileX, tileY);
-        return tile !== null && tile.index !== -1;
+        // Use the layer's built-in world coordinate conversion (handles scale automatically)
+        const tile = this.decorationLayer.getTileAtWorldXY(worldX, worldY);
+        return tile !== null;
     }
 
     // Check collision for a rectangular area (player hitbox)

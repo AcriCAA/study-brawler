@@ -261,11 +261,6 @@ class BootScene extends Phaser.Scene {
 
     async loadGameData() {
         try {
-            // Fetch brawlers (using authenticated request)
-            const brawlersResponse = await GameConfig.fetchAuth('/brawlers');
-            const brawlersData = await brawlersResponse.json();
-            this.registry.set('brawlers', brawlersData.data || []);
-
             // Fetch levels for this student (using authenticated request)
             const levelsResponse = await GameConfig.fetchAuth('/levels');
             const levelsData = await levelsResponse.json();
@@ -295,7 +290,6 @@ class BootScene extends Phaser.Scene {
             console.error('Failed to load game data:', error);
             // If there's an auth error, it will redirect to login automatically
             // For other errors, start anyway with empty data
-            this.registry.set('brawlers', []);
             this.registry.set('levels', []);
             this.registry.set('notifications', []);
             this.registry.set('unreadNotificationCount', 0);

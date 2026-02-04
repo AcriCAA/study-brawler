@@ -30,6 +30,7 @@ class GameController extends Controller
                     'description' => $level->description,
                     'difficulty' => $level->difficulty,
                     'background_theme' => $level->background_theme,
+                    'map_key' => $level->map_key,
                     'questions_count' => $level->questions_count,
                     'study_material' => $level->studyMaterial?->title,
                 ];
@@ -75,6 +76,7 @@ class GameController extends Controller
                 'description' => $level->description,
                 'difficulty' => $level->difficulty,
                 'background_theme' => $level->background_theme,
+                'map_key' => $level->map_key,
                 'questions' => $questions,
             ],
         ]);
