@@ -41,5 +41,9 @@ return [
     'filament' =>[
       'panel_access_emails'=> env('FILAMENT_PANEL_ACCESS_EMAILS'),
     ],
+    'horizon' => [
+
+        'email' => env('HORIZON_EMAIL'),
+    ]
 
 ];
