@@ -3,11 +3,14 @@
         "height": 4300,
         "width": 2
     },
-    "activeFile": "starter-template.tmx",
+    "activeFile": "epiclevel.json",
     "expandedProjectPaths": [
         "."
     ],
     "fileStates": {
+        "": {
+            "scaleInDock": 1
+        },
         "TilesetElement.tsx": {
             "scaleInDock": 1,
             "scaleInEditor": 1
@@ -53,25 +56,40 @@
         },
         "epiclevel.json": {
             "scale": 1.1885602678571427,
-            "selectedLayer": 1,
+            "selectedLayer": 0,
             "viewCenter": {
-                "x": 601.5681487393775,
-                "y": 412.68416357575484
+                "x": 604.9335649561012,
+                "y": 337.80365275365045
             }
         },
         "epiclevel.json#TilesetElement": {
             "scaleInDock": 1
         },
+        "epiclevel.json#TilesetElement2": {
+            "scaleInDock": 1
+        },
         "epiclevel.json#TilesetFloor": {
+            "scaleInDock": 1
+        },
+        "epiclevel.json#TilesetFloor2": {
             "scaleInDock": 1
         },
         "epiclevel.json#TilesetHouse": {
             "scaleInDock": 1
         },
+        "epiclevel.json#TilesetHouse2": {
+            "scaleInDock": 1
+        },
         "epiclevel.json#TilesetNature": {
             "scaleInDock": 1
         },
+        "epiclevel.json#TilesetNature2": {
+            "scaleInDock": 1
+        },
         "epiclevel.json#TilesetWater": {
+            "scaleInDock": 1
+        },
+        "epiclevel.json#TilesetWater2": {
             "scaleInDock": 1
         },
         "forest.json": {
@@ -110,7 +128,7 @@
             "selectedLayer": 2,
             "viewCenter": {
                 "x": 529.211700079816,
-                "y": 428.6698906051928
+                "y": 410.1601014132119
             }
         }
     },
@@ -128,16 +146,22 @@
         "TilesetElement.tsx",
         "TilesetHouse.tsx",
         "TilesetNature.tsx",
-        "TilesetWater.tsx"
+        "TilesetWater.tsx",
+        "dungeon.json",
+        "template2.tmx",
+        "epiclevel.json"
     ],
     "project": "StudyBrawler.tiled-project",
     "recentFiles": [
-        "TilesetWater.tsx",
-        "TilesetNature.tsx",
-        "TilesetHouse.tsx",
-        "TilesetElement.tsx",
-        "TilesetFloor.tsx",
+        "starter-template.tmx",
         "forest.json",
-        "starter-template.tmx"
+        "TilesetFloor.tsx",
+        "TilesetElement.tsx",
+        "TilesetHouse.tsx",
+        "TilesetNature.tsx",
+        "TilesetWater.tsx",
+        "dungeon.json",
+        "template2.tmx",
+        "epiclevel.json"
     ]
 }
