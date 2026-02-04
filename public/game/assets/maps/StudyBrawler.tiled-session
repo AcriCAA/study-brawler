@@ -1,4 +1,8 @@
 {
+    "Map/SizeTest": {
+        "height": 4300,
+        "width": 2
+    },
     "activeFile": "starter-template.tmx",
     "expandedProjectPaths": [
         "."
@@ -24,12 +28,58 @@
             "scaleInDock": 1,
             "scaleInEditor": 1
         },
+        "dungeon.json": {
+            "scale": 1.0210379464285715,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": 448.07345466469906,
+                "y": 320.2623380882111
+            }
+        },
+        "dungeon.json#TilesetElement": {
+            "scaleInDock": 1
+        },
+        "dungeon.json#TilesetFloor": {
+            "scaleInDock": 1
+        },
+        "dungeon.json#TilesetHouse": {
+            "scaleInDock": 1
+        },
+        "dungeon.json#TilesetNature": {
+            "scaleInDock": 1
+        },
+        "dungeon.json#TilesetWater": {
+            "scaleInDock": 1
+        },
+        "epiclevel.json": {
+            "scale": 1.1885602678571427,
+            "selectedLayer": 1,
+            "viewCenter": {
+                "x": 601.5681487393775,
+                "y": 412.68416357575484
+            }
+        },
+        "epiclevel.json#TilesetElement": {
+            "scaleInDock": 1
+        },
+        "epiclevel.json#TilesetFloor": {
+            "scaleInDock": 1
+        },
+        "epiclevel.json#TilesetHouse": {
+            "scaleInDock": 1
+        },
+        "epiclevel.json#TilesetNature": {
+            "scaleInDock": 1
+        },
+        "epiclevel.json#TilesetWater": {
+            "scaleInDock": 1
+        },
         "forest.json": {
             "scale": 1.0083147321428572,
             "selectedLayer": 0,
             "viewCenter": {
-                "x": 447.7768553876806,
-                "y": 320.3364879074659
+                "x": 553.894515468482,
+                "y": 331.2457800653052
             }
         },
         "forest.json#TilesetElement": {
@@ -54,10 +104,23 @@
                 "x": 463.5,
                 "y": 334
             }
+        },
+        "template2.tmx": {
+            "scale": 1.1885602678571427,
+            "selectedLayer": 2,
+            "viewCenter": {
+                "x": 529.211700079816,
+                "y": 428.6698906051928
+            }
         }
     },
     "last.exportedFilePath": "/Users/coreyacri/Herd/study-brawler/public/game/assets/maps",
+    "map.height": 40,
     "map.lastUsedExportFilter": "JSON map files (*.tmj *.json)",
+    "map.lastUsedFormat": "json",
+    "map.tileHeight": 16,
+    "map.tileWidth": 16,
+    "map.width": 56,
     "openFiles": [
         "starter-template.tmx",
         "forest.json",
