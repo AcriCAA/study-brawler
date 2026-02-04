@@ -14,6 +14,8 @@ class BrawlerResource extends Resource
 {
     protected static ?string $model = Brawler::class;
 
+    protected static bool $shouldRegisterNavigation = false;
+
     protected static ?string $navigationIcon = 'heroicon-o-bolt';
 
     protected static ?string $navigationGroup = 'Players';

@@ -18,9 +18,8 @@ class ListStudyMaterials extends ListRecords
         ];
     }
 
-    // Poll every 2 seconds while there's a parsing job
     public function getTablePollingInterval(): ?string
     {
-        return StudyMaterial::where('status', 'parsing')->exists() ? '2s' : null;
+        return '3s';
     }
 }

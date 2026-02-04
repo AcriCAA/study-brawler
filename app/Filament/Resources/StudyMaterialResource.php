@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources;
 
+use App\Filament\Resources\LevelResource;
 use App\Filament\Resources\StudyMaterialResource\Pages;
 use App\Jobs\ParseStudyMaterialJob;
 use App\Models\Student;
@@ -131,6 +132,45 @@ class StudyMaterialResource extends Resource
                     ->searchable()
                     ->sortable(),
 
+                Tables\Columns\TextColumn::make('parse_action')
+                    ->label('')
+                    ->getStateUsing(function (StudyMaterial $record) {
+                        if (in_array($record->status, ['pending', 'failed']) && $record->isApproved()) {
+                            return 'Parse with AI';
+                        }
+                        return '';
+                    })
+                    ->badge()
+                    ->color('primary')
+                    ->icon(fn (string $state) => $state ? 'heroicon-o-sparkles' : null)
+                    ->action(function (StudyMaterial $record) {
+                        $parser = new ClaudeParserService();
+
+                        if (!$parser->isConfigured()) {
+                            Notification::make()
+                                ->title('API Key Not Configured')
+                                ->body('Please add your ANTHROPIC_API_KEY to the .env file.')
+                                ->danger()
+                                ->send();
+                            return;
+                        }
+
+                        $record->update([
+                            'status' => 'parsing',
+                            'parse_progress' => 0,
+                            'parse_message' => 'Starting...',
+                            'error_message' => null,
+                        ]);
+
+                        ParseStudyMaterialJob::dispatch($record);
+
+                        Notification::make()
+                            ->title('Parsing Started')
+                            ->body('The study material is being processed. The page will refresh automatically.')
+                            ->info()
+                            ->send();
+                    }),
+
                 Tables\Columns\TextColumn::make('student.name')
                     ->label('Student')
                     ->searchable()
@@ -152,6 +192,22 @@ class StudyMaterialResource extends Resource
                         'parsed' => 'success',
                         'failed' => 'danger',
                         default => 'gray',
+                    })
+                    ->description(function (StudyMaterial $record) {
+                        if ($record->status !== 'parsing') {
+                            return null;
+                        }
+                        $percent = $record->parse_progress ?? 0;
+                        $message = $record->parse_message ?? 'Processing...';
+                        return new HtmlString("
+                            <div class='w-32 mt-1'>
+                                <div class='text-xs text-gray-500 mb-1'>{$message}</div>
+                                <div class='w-full bg-gray-200 rounded-full h-2'>
+                                    <div class='bg-primary-600 h-2 rounded-full transition-all duration-500' style='width: {$percent}%'></div>
+                                </div>
+                                <div class='text-xs text-gray-400 mt-1'>{$percent}%</div>
+                            </div>
+                        ");
                     }),
 
                 Tables\Columns\TextColumn::make('approval_status')
@@ -165,28 +221,20 @@ class StudyMaterialResource extends Resource
                         default => 'gray',
                     }),
 
-                Tables\Columns\TextColumn::make('parse_progress')
-                    ->label('Progress')
-                    ->formatStateUsing(function ($state, $record) {
-                        if ($record->status !== 'parsing') {
-                            return '';
-                        }
-                        $percent = $state ?? 0;
-                        $message = $record->parse_message ?? 'Processing...';
-                        return new HtmlString("
-                            <div class='w-32'>
-                                <div class='text-xs text-gray-500 mb-1'>{$message}</div>
-                                <div class='w-full bg-gray-200 rounded-full h-2'>
-                                    <div class='bg-primary-600 h-2 rounded-full transition-all duration-500' style='width: {$percent}%'></div>
-                                </div>
-                                <div class='text-xs text-gray-400 mt-1'>{$percent}%</div>
-                            </div>
-                        ");
-                    }),
-
-                Tables\Columns\TextColumn::make('levels_count')
+                Tables\Columns\TextColumn::make('levels_list')
                     ->label('Levels')
-                    ->counts('levels'),
+                    ->getStateUsing(function (StudyMaterial $record) {
+                        $levels = $record->levels;
+                        if ($levels->isEmpty()) {
+                            return new HtmlString('<span class="text-xs text-gray-400">None</span>');
+                        }
+                        $pills = $levels->map(function ($level) {
+                            $url = LevelResource::getUrl('edit', ['record' => $level]);
+                            return '<a href="' . $url . '" class="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-info-50 text-info-700 ring-1 ring-inset ring-info-600/20 dark:bg-info-400/10 dark:text-info-400 dark:ring-info-400/30 hover:underline">' . e($level->title) . '</a>';
+                        })->join(' ');
+                        return new HtmlString($pills);
+                    })
+                    ->html(),
 
                 Tables\Columns\TextColumn::make('created_at')
                     ->dateTime()
@@ -309,41 +357,6 @@ class StudyMaterialResource extends Resource
                             ->title('Study Material Denied')
                             ->body('The student has been notified.')
                             ->warning()
-                            ->send();
-                    }),
-
-                Tables\Actions\Action::make('parse')
-                    ->label('Parse with AI')
-                    ->icon('heroicon-o-sparkles')
-                    ->color('primary')
-                    ->visible(fn (StudyMaterial $record) => in_array($record->status, ['pending', 'failed']) && $record->isApproved())
-                    ->action(function (StudyMaterial $record) {
-                        $parser = new ClaudeParserService();
-
-                        if (!$parser->isConfigured()) {
-                            Notification::make()
-                                ->title('API Key Not Configured')
-                                ->body('Please add your ANTHROPIC_API_KEY to the .env file.')
-                                ->danger()
-                                ->send();
-                            return;
-                        }
-
-                        // Reset progress and dispatch job
-                        $record->update([
-                            'status' => 'parsing',
-                            'parse_progress' => 0,
-                            'parse_message' => 'Starting...',
-                            'error_message' => null,
-                        ]);
-
-                        // Dispatch to queue
-                        ParseStudyMaterialJob::dispatch($record);
-
-                        Notification::make()
-                            ->title('Parsing Started')
-                            ->body('The study material is being processed. The page will refresh automatically.')
-                            ->info()
                             ->send();
                     }),
 
