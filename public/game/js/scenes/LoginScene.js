@@ -3,6 +3,11 @@ class LoginScene extends Phaser.Scene {
         super({ key: 'LoginScene' });
     }
 
+    preload() {
+        // Load logo for this scene
+        this.load.svg('logo', '/game/assets/logo.svg', { width: 840, height: 156 });
+    }
+
     create() {
         const { width, height } = this.cameras.main;
 
@@ -20,28 +25,13 @@ class LoginScene extends Phaser.Scene {
         // Animated particles in background
         this.createBackgroundParticles();
 
-        // Title
-        const title = this.add.text(width / 2, 100, 'STUDY BRAWLER', {
-            fontFamily: 'Arial Black',
-            fontSize: '48px',
-            color: '#00ffff',
-            stroke: '#000000',
-            strokeThickness: 6,
-        }).setOrigin(0.5);
-
-        // Title animation
-        this.tweens.add({
-            targets: title,
-            scaleX: 1.05,
-            scaleY: 1.05,
-            duration: 1000,
-            yoyo: true,
-            repeat: -1,
-            ease: 'Sine.easeInOut'
-        });
+        // Logo
+        const logo = this.add.image(width / 2, 80, 'logo');
+        logo.setScale(0.55);
+        logo.setOrigin(0.5);
 
         // Subtitle
-        this.add.text(width / 2, 160, 'Enter your credentials to play', {
+        this.add.text(width / 2, 150, 'Enter your credentials to play', {
             fontFamily: 'Arial',
             fontSize: '18px',
             color: '#aaaaaa',

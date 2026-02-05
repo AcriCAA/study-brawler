@@ -4,26 +4,68 @@ class BootScene extends Phaser.Scene {
     }
 
     preload() {
-        // Show loading screen for asset loading
+        const { width, height } = this.cameras.main;
+
+        // Hide the HTML loading screen - we'll use Phaser graphics instead
         const loadingScreen = document.getElementById('loading-screen');
         if (loadingScreen) {
-            loadingScreen.style.display = 'flex';
+            loadingScreen.style.display = 'none';
         }
 
-        // Update loading bar
-        const loadingBar = document.getElementById('loading-bar');
+        // Create background
+        const bg = this.add.graphics();
+        bg.fillGradientStyle(0x1a1a2e, 0x1a1a2e, 0x16213e, 0x16213e, 1);
+        bg.fillRect(0, 0, width, height);
 
+        // Create background particles
+        this.createBackgroundParticles();
+
+        // Minimal loading text at bottom center
+        this.loadingText = this.add.text(width / 2, height - 40, 'Loading...', {
+            fontFamily: 'Arial',
+            fontSize: '14px',
+            color: '#666666'
+        }).setOrigin(0.5);
+
+        // Track when both animation and loading are done
+        this.animationComplete = false;
+        this.loadingComplete = false;
+
+        // Load logo FIRST (priority) so we can display it during loading
+        this.load.svg('logo', '/game/assets/logo.svg', { width: 840, height: 156 });
+
+        // Once logo is loaded, start the 2 second zoom animation
+        this.load.once('filecomplete-svg-logo', () => {
+            // Create logo in center of screen
+            this.logo = this.add.image(width / 2, height / 2, 'logo');
+            this.logo.setScale(0.1); // Start small
+            this.logo.setOrigin(0.5);
+            this.logo.setDepth(100);
+
+            // Fixed 2 second zoom animation
+            this.tweens.add({
+                targets: this.logo,
+                scale: 2.8, // Zoom to 400% of final size
+                duration: 2000,
+                ease: 'Quad.easeIn',
+                onComplete: () => {
+                    this.animationComplete = true;
+                    this.checkReadyToExplode();
+                }
+            });
+        });
+
+        // Update loading text with progress
         this.load.on('progress', (value) => {
-            if (loadingBar) {
-                loadingBar.style.width = (value * 100) + '%';
+            if (this.loadingText) {
+                this.loadingText.setText(`Loading... ${Math.floor(value * 100)}%`);
             }
         });
 
+        // When loading completes
         this.load.on('complete', () => {
-            const screen = document.getElementById('loading-screen');
-            if (screen) {
-                screen.style.display = 'none';
-            }
+            this.loadingComplete = true;
+            this.checkReadyToExplode();
         });
 
         // All available character sprite keys (all 64x112, 4 cols x 7 rows of 16x16 frames)
@@ -140,6 +182,9 @@ class BootScene extends Phaser.Scene {
             this.load.tilemapTiledJSON('map_' + mapKey, '/game/assets/maps/' + mapKey + '.json');
         });
 
+        // Load logo (single line version - wider aspect ratio)
+        this.load.svg('logo', '/game/assets/logo.svg', { width: 840, height: 156 });
+
         // Load audio files
         const availableBgm = ['bgm_battle', 'bgm_battle2'];
         availableBgm.forEach(bgmKey => {
@@ -156,6 +201,20 @@ class BootScene extends Phaser.Scene {
     }
 
     create() {
+        // The explosion and scene transition is handled by checkReadyToExplode
+    }
+
+    checkReadyToExplode() {
+        // Only explode when both animation AND loading are complete
+        if (this.animationComplete && this.loadingComplete) {
+            if (this.loadingText) {
+                this.loadingText.setVisible(false);
+            }
+            this.explodeLogo();
+        }
+    }
+
+    createAnimations() {
         // Create animations for all character sprites (same frame layout)
         this.characterKeys.forEach(key => {
             this.anims.create({
@@ -248,18 +307,6 @@ class BootScene extends Phaser.Scene {
             frameRate: 16,
             repeat: 0
         });
-
-        // Restore saved character selection
-        const savedCharacter = localStorage.getItem('selected_character');
-        if (savedCharacter) {
-            this.registry.set('selectedCharacter', savedCharacter);
-        }
-
-        // Store character keys in registry for CharacterSelectScene
-        this.registry.set('characterKeys', this.characterKeys);
-
-        // Fetch initial game data
-        this.loadGameData();
     }
 
     async loadGameData() {
@@ -302,6 +349,119 @@ class BootScene extends Phaser.Scene {
             } else {
                 this.scene.start('MenuScene');
             }
+        }
+    }
+
+    explodeLogo() {
+        if (!this.logo) {
+            this.proceedAfterExplosion();
+            return;
+        }
+
+        const { width, height } = this.cameras.main;
+
+        // Create pixelated explosion pieces
+        const pixelSize = 10;
+        const logoWidth = this.logo.displayWidth;
+        const logoHeight = this.logo.displayHeight;
+        const startX = this.logo.x - logoWidth / 2;
+        const startY = this.logo.y - logoHeight / 2;
+
+        // Hide original logo
+        this.logo.setVisible(false);
+
+        // Create pixel particles
+        const colors = [0xFFF06A, 0xFFB100, 0xFF4A1E, 0xC40018, 0x1A4CFF, 0x0B1D6B];
+
+        for (let x = 0; x < logoWidth; x += pixelSize) {
+            for (let y = 0; y < logoHeight; y += pixelSize) {
+                // Only create some pixels for performance
+                if (Math.random() > 0.25) continue;
+
+                const color = colors[Math.floor(Math.random() * colors.length)];
+                const pixel = this.add.rectangle(
+                    startX + x + pixelSize / 2,
+                    startY + y + pixelSize / 2,
+                    pixelSize,
+                    pixelSize,
+                    color
+                );
+                pixel.setDepth(100);
+
+                // Explode outward from center
+                const angle = Math.atan2(
+                    (startY + y) - this.logo.y,
+                    (startX + x) - this.logo.x
+                );
+                const distance = Phaser.Math.Between(150, 400);
+                const targetX = pixel.x + Math.cos(angle) * distance;
+                const targetY = pixel.y + Math.sin(angle) * distance;
+
+                this.tweens.add({
+                    targets: pixel,
+                    x: targetX,
+                    y: targetY,
+                    alpha: 0,
+                    scale: 0.2,
+                    angle: Phaser.Math.Between(-720, 720),
+                    duration: Phaser.Math.Between(600, 1000),
+                    ease: 'Quad.easeOut',
+                    onComplete: () => pixel.destroy()
+                });
+            }
+        }
+
+        // Screen flash on explosion
+        this.cameras.main.flash(200, 255, 255, 255);
+
+        // Proceed after explosion animation
+        this.time.delayedCall(800, () => {
+            this.proceedAfterExplosion();
+        });
+    }
+
+    proceedAfterExplosion() {
+        // Create animations and load game data
+        this.createAnimations();
+
+        // Restore saved character selection
+        const savedCharacter = localStorage.getItem('selected_character');
+        if (savedCharacter) {
+            this.registry.set('selectedCharacter', savedCharacter);
+        }
+
+        // Store character keys in registry for CharacterSelectScene
+        this.registry.set('characterKeys', this.characterKeys);
+
+        // Fetch initial game data
+        this.loadGameData();
+    }
+
+    createBackgroundParticles() {
+        const { width, height } = this.cameras.main;
+        // Create floating particles
+        for (let i = 0; i < 30; i++) {
+            const particle = this.add.circle(
+                Phaser.Math.Between(0, width),
+                Phaser.Math.Between(0, height),
+                Phaser.Math.Between(1, 3),
+                0x00ffff,
+                0.3
+            );
+
+            this.tweens.add({
+                targets: particle,
+                y: particle.y - 50,
+                alpha: 0,
+                duration: Phaser.Math.Between(2000, 4000),
+                repeat: -1,
+                delay: Phaser.Math.Between(0, 2000),
+                onRepeat: () => {
+                    particle.y = Phaser.Math.Between(height - 150, height);
+                    particle.x = Phaser.Math.Between(0, width);
+                    particle.alpha = 0.3;
+                }
+            });
         }
     }
 }

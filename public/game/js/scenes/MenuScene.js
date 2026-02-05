@@ -14,31 +14,19 @@ class MenuScene extends Phaser.Scene {
         // Animated particles in background
         this.createBackgroundParticles();
 
-        // Title with glow effect
-        const title = this.add.text(width / 2, 100, 'STUDY BRAWLER', {
-            fontFamily: 'Arial Black',
-            fontSize: '52px',
-            color: '#00ffff',
-            stroke: '#000000',
-            strokeThickness: 6,
-        }).setOrigin(0.5);
-
-        // Title animation
-        this.tweens.add({
-            targets: title,
-            scaleX: 1.05,
-            scaleY: 1.05,
-            duration: 1000,
-            yoyo: true,
-            repeat: -1,
-            ease: 'Sine.easeInOut'
-        });
+        // Create logo and start throbbing
+        this.logo = this.add.image(width / 2, 70, 'logo');
+        this.logo.setScale(0.7);
+        this.logo.setOrigin(0.5);
+        this.startThrobAnimation();
 
         // Subtitle
         this.add.text(width / 2, 160, 'Learn through battle!', {
             fontFamily: 'Arial',
-            fontSize: '20px',
-            color: '#ffffff',
+            fontSize: '25px',
+            color: '#FFB100',
+            stroke: '#1A4CFF', // Outline color
+            strokeThickness: 1, // Thickness of the outline
         }).setOrigin(0.5);
 
         // Current player info
@@ -97,40 +85,46 @@ class MenuScene extends Phaser.Scene {
     createButton(x, y, text, callback, color = 0x00ffff) {
         const button = this.add.container(x, y);
 
+        // Button dimensions - wider to fit longer text
+        const btnWidth = 300;
+        const btnHeight = 50;
+        const halfW = btnWidth / 2;
+        const halfH = btnHeight / 2;
+
         // Button background
         const bg = this.add.graphics();
         bg.fillStyle(0x000000, 0.5);
-        bg.fillRoundedRect(-120, -25, 240, 50, 10);
+        bg.fillRoundedRect(-halfW, -halfH, btnWidth, btnHeight, 10);
         bg.lineStyle(3, color);
-        bg.strokeRoundedRect(-120, -25, 240, 50, 10);
+        bg.strokeRoundedRect(-halfW, -halfH, btnWidth, btnHeight, 10);
 
         // Button text
         const btnText = this.add.text(0, 0, text, {
             fontFamily: 'Arial Black',
-            fontSize: '20px',
-            color: '#ffffff',
+            fontSize: '18px',
+            color: '#FFB100',
         }).setOrigin(0.5);
 
         button.add([bg, btnText]);
 
         // Make interactive
-        button.setSize(240, 50);
+        button.setSize(btnWidth, btnHeight);
         button.setInteractive({ useHandCursor: true });
 
         button.on('pointerover', () => {
             bg.clear();
             bg.fillStyle(color, 0.3);
-            bg.fillRoundedRect(-120, -25, 240, 50, 10);
+            bg.fillRoundedRect(-halfW, -halfH, btnWidth, btnHeight, 10);
             bg.lineStyle(3, color);
-            bg.strokeRoundedRect(-120, -25, 240, 50, 10);
+            bg.strokeRoundedRect(-halfW, -halfH, btnWidth, btnHeight, 10);
         });
 
         button.on('pointerout', () => {
             bg.clear();
             bg.fillStyle(0x000000, 0.5);
-            bg.fillRoundedRect(-120, -25, 240, 50, 10);
+            bg.fillRoundedRect(-halfW, -halfH, btnWidth, btnHeight, 10);
             bg.lineStyle(3, color);
-            bg.strokeRoundedRect(-120, -25, 240, 50, 10);
+            bg.strokeRoundedRect(-halfW, -halfH, btnWidth, btnHeight, 10);
         });
 
         button.on('pointerdown', callback);
@@ -477,6 +471,19 @@ class MenuScene extends Phaser.Scene {
                 submitButton.disabled = false;
                 submitButton.textContent = 'UPLOAD';
             }
+        });
+    }
+
+    startThrobAnimation() {
+        // Pulsing/throbbing animation until game starts
+        this.logoThrob = this.tweens.add({
+            targets: this.logo,
+            scaleX: 0.73,
+            scaleY: 0.73,
+            duration: 800,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.easeInOut'
         });
     }
 

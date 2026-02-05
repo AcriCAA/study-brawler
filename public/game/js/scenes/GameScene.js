@@ -1278,48 +1278,160 @@ class GameScene extends Phaser.Scene {
         this.isPaused = !this.isPaused;
         if (this.isPaused) {
             this.showPauseMenu();
-        } else if (this.pauseMenu) {
-            this.pauseMenu.destroy();
+        } else {
+            this.destroyPauseMenu();
         }
     }
 
     showPauseMenu() {
         const { width, height } = this.cameras.main;
 
-        this.pauseMenu = this.add.container(width / 2, height / 2);
-        this.pauseMenu.setDepth(2000);
-        this.pauseMenu.setScrollFactor(0); // Fixed to camera
+        // Store all elements to destroy later
+        this.pauseMenuElements = [];
+        this.pauseMenuSelection = 0; // 0 = Resume, 1 = Quit
 
-        const overlay = this.add.rectangle(0, 0, width * 2, height * 2, 0x000000, 0.7);
+        // Overlay
+        const overlay = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.7);
+        overlay.setScrollFactor(0);
+        overlay.setDepth(1999);
+        this.pauseMenuElements.push(overlay);
+
+        // Panel background
         const panel = this.add.graphics();
+        panel.setScrollFactor(0);
+        panel.setDepth(2000);
         panel.fillStyle(0x222222, 1);
-        panel.fillRoundedRect(-150, -100, 300, 200, 15);
+        panel.fillRoundedRect(width / 2 - 150, height / 2 - 100, 300, 200, 15);
+        panel.lineStyle(3, 0x00ffff);
+        panel.strokeRoundedRect(width / 2 - 150, height / 2 - 100, 300, 200, 15);
+        this.pauseMenuElements.push(panel);
 
-        const title = this.add.text(0, -70, 'PAUSED', {
+        // Title
+        const title = this.add.text(width / 2, height / 2 - 70, 'PAUSED', {
             fontFamily: 'Arial Black',
             fontSize: '28px',
             color: '#00ffff'
-        }).setOrigin(0.5);
+        }).setOrigin(0.5).setScrollFactor(0).setDepth(2001);
+        this.pauseMenuElements.push(title);
 
-        const resumeBtn = this.add.text(0, -10, 'RESUME', {
-            fontFamily: 'Arial',
-            fontSize: '20px',
+        // Resume button - use text with padding/background style
+        this.resumeBtn = this.add.text(width / 2, height / 2 - 10, '  RESUME  ', {
+            fontFamily: 'Arial Black',
+            fontSize: '18px',
             color: '#00ff00',
             backgroundColor: '#333333',
-            padding: { x: 20, y: 10 }
-        }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-        resumeBtn.on('pointerdown', () => this.togglePause());
+            padding: { x: 30, y: 10 }
+        }).setOrigin(0.5).setScrollFactor(0).setDepth(2002);
+        this.resumeBtn.setInteractive({ useHandCursor: true });
+        this.resumeBtn.on('pointerdown', () => this.selectPauseMenuItem(0));
+        this.resumeBtn.on('pointerover', () => this.highlightPauseMenuItem(0));
+        this.pauseMenuElements.push(this.resumeBtn);
 
-        const quitBtn = this.add.text(0, 50, 'QUIT', {
-            fontFamily: 'Arial',
-            fontSize: '20px',
+        // Quit button
+        this.quitBtn = this.add.text(width / 2, height / 2 + 50, '  QUIT  ', {
+            fontFamily: 'Arial Black',
+            fontSize: '18px',
             color: '#ff6666',
             backgroundColor: '#333333',
-            padding: { x: 20, y: 10 }
-        }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-        quitBtn.on('pointerdown', () => this.scene.start('LevelSelectScene'));
+            padding: { x: 45, y: 10 }
+        }).setOrigin(0.5).setScrollFactor(0).setDepth(2002);
+        this.quitBtn.setInteractive({ useHandCursor: true });
+        this.quitBtn.on('pointerdown', () => this.selectPauseMenuItem(1));
+        this.quitBtn.on('pointerover', () => this.highlightPauseMenuItem(1));
+        this.pauseMenuElements.push(this.quitBtn);
 
-        this.pauseMenu.add([overlay, panel, title, resumeBtn, quitBtn]);
+        // Highlight initial selection
+        this.highlightPauseMenuItem(0);
+
+        // Setup keyboard controls for pause menu
+        this.pauseMenuKeys = {
+            up: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.UP),
+            down: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.DOWN),
+            w: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.W),
+            s: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.S),
+            enter: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ENTER),
+            space: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE)
+        };
+
+        this.pauseMenuKeys.up.on('down', () => this.navigatePauseMenu(-1));
+        this.pauseMenuKeys.down.on('down', () => this.navigatePauseMenu(1));
+        this.pauseMenuKeys.w.on('down', () => this.navigatePauseMenu(-1));
+        this.pauseMenuKeys.s.on('down', () => this.navigatePauseMenu(1));
+        this.pauseMenuKeys.enter.on('down', () => this.selectPauseMenuItem(this.pauseMenuSelection));
+        this.pauseMenuKeys.space.on('down', () => this.selectPauseMenuItem(this.pauseMenuSelection));
+    }
+
+    navigatePauseMenu(direction) {
+        if (!this.isPaused) return;
+        this.playSound('click');
+        this.pauseMenuSelection = (this.pauseMenuSelection + direction + 2) % 2;
+        this.highlightPauseMenuItem(this.pauseMenuSelection);
+    }
+
+    highlightPauseMenuItem(index) {
+        if (!this.resumeBtn || !this.quitBtn) return;
+        this.pauseMenuSelection = index;
+
+        // Reset both buttons
+        this.resumeBtn.setStyle({ backgroundColor: '#333333' });
+        this.quitBtn.setStyle({ backgroundColor: '#333333' });
+
+        // Highlight selected
+        if (index === 0) {
+            this.resumeBtn.setStyle({ backgroundColor: '#005500' });
+        } else {
+            this.quitBtn.setStyle({ backgroundColor: '#550000' });
+        }
+    }
+
+    selectPauseMenuItem(index) {
+        if (!this.isPaused) return;
+        this.playSound('click');
+        if (index === 0) {
+            this.togglePause(); // Resume
+        } else {
+            this.quitToLevelSelect(); // Quit
+        }
+    }
+
+    destroyPauseMenu() {
+        // Remove keyboard listeners
+        if (this.pauseMenuKeys) {
+            Object.values(this.pauseMenuKeys).forEach(key => {
+                key.removeAllListeners();
+                this.input.keyboard.removeKey(key);
+            });
+            this.pauseMenuKeys = null;
+        }
+
+        // Destroy visual elements
+        if (this.pauseMenuElements) {
+            this.pauseMenuElements.forEach(el => el.destroy());
+            this.pauseMenuElements = [];
+        }
+
+        this.resumeBtn = null;
+        this.quitBtn = null;
+    }
+
+    async quitToLevelSelect() {
+        // Save current progress before quitting
+        const totalQuestions = this.questions.length;
+        const accuracy = this.correctAnswers / totalQuestions;
+        let stars = accuracy >= 0.9 ? 3 : accuracy >= 0.7 ? 2 : accuracy >= 0.5 ? 1 : 0;
+
+        // Only save if player has made some progress
+        if (this.completedQuestions.size > 0) {
+            await this.saveProgress(stars, false);
+        }
+
+        // Stop music
+        if (this.bgMusic && this.bgMusic.isPlaying) {
+            this.bgMusic.stop();
+        }
+
+        // Go to level select
+        this.scene.start('LevelSelectScene');
     }
 
     update() {

@@ -1,0 +1,108 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="520" viewBox="0 0 1400 520">
+  <defs>
+    <!-- Stronger arcade gradient -->
+    <linearGradient id="arcadeFill" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#FFF06A"/>
+      <stop offset="35%" stop-color="#FFB100"/>
+      <stop offset="70%" stop-color="#FF4A1E"/>
+      <stop offset="100%" stop-color="#C40018"/>
+    </linearGradient>
+
+    <linearGradient id="sheen" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="rgba(255,255,255,0)"/>
+      <stop offset="42%" stop-color="rgba(255,255,255,0.35)"/>
+      <stop offset="58%" stop-color="rgba(255,255,255,0)"/>
+    </linearGradient>
+
+    <filter id="softShadow" x="-20%" y="-20%" width="140%" height="160%">
+      <feGaussianBlur stdDeviation="3" result="b"/>
+      <feOffset dy="6" result="o"/>
+      <feMerge>
+        <feMergeNode in="o"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- MAIN TRANSFORM GROUP -->
+  <g filter="url(#softShadow)"
+     transform="translate(700,260) skewX(-20) scale(1.05,1.15) translate(-700,-260)">
+
+    <!-- VECTOR FIST ICON (BACKGROUND) -->
+    <!-- Adjust scale() and translate() to fine-tune placement -->
+    <g id="fist-icon"
+       transform="translate(700,310) scale(4.5) translate(-64,-64)"
+       opacity="0.22"
+       fill="#000"
+       stroke="#000"
+       stroke-width="2">
+
+      <!-- Simple stylized fist -->
+      <path   fill="#c66e25" d="M20 40 h60 v28 c0 12-10 20-22 20H42c-12 0-22-8-22-20V40z"/>
+      <rect   fill="#c66e25" x="20" y="20" width="14" height="22" rx="6"/>
+      <rect   fill="#c66e25" x="34" y="18" width="14" height="24" rx="6"/>
+      <rect   fill="#c66e25" x="48" y="16" width="14" height="26" rx="6"/>
+      <rect   fill="#c66e25" x="62" y="18" width="14" height="24" rx="6"/>
+      <rect   fill="#c66e25" x="76" y="22" width="14" height="20" rx="6"/>
+    </g>
+
+    <!-- RED DROP SHADOW -->
+    <g transform="translate(24,22)">
+      <text x="700" y="320"
+            text-anchor="middle"
+            font-family="Impact, Haettenschweiler, 'Arial Black', sans-serif"
+            font-size="170"
+            font-weight="900"
+            fill="#E01A1A"
+            stroke="#6C0C0C"
+            stroke-width="20"
+            letter-spacing="3">
+        <tspan>STUDY</tspan>
+        <tspan dx="60">BRAWLER</tspan>
+      </text>
+    </g>
+
+    <!-- MAIN TEXT -->
+    <g>
+      <text x="700" y="320"
+            text-anchor="middle"
+            font-family="Impact, Haettenschweiler, 'Arial Black', sans-serif"
+            font-size="165"
+            font-weight="900"
+            fill="url(#arcadeFill)"
+            stroke="#1A4CFF"
+            stroke-width="30"
+            paint-order="stroke fill"
+            letter-spacing="6">
+        <tspan>STUDY</tspan>
+        <tspan dx="60">BRAWLER</tspan>
+      </text>
+
+      <text x="700" y="320"
+            text-anchor="middle"
+            font-family="Impact, Haettenschweiler, 'Arial Black', sans-serif"
+            font-size="165"
+            font-weight="900"
+            fill="none"
+            stroke="#0B1D6B"
+            stroke-width="12"
+            letter-spacing="6">
+        <tspan>STUDY</tspan>
+        <tspan dx="60">BRAWLER</tspan>
+      </text>
+
+      <g opacity="0.35">
+        <text x="700" y="320"
+              text-anchor="middle"
+              font-family="Impact, Haettenschweiler, 'Arial Black', sans-serif"
+              font-size="165"
+              font-weight="900"
+              fill="url(#sheen)"
+              letter-spacing="6">
+          <tspan>STUDY</tspan>
+          <tspan dx="60">BRAWLER</tspan>
+        </text>
+      </g>
+    </g>
+  </g>
+</svg>

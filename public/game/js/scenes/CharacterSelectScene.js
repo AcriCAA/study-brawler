@@ -55,7 +55,7 @@ class CharacterSelectScene extends Phaser.Scene {
         const gapY = 15;
         const totalWidth = cols * cardWidth + (cols - 1) * gapX;
         const startX = (width - totalWidth) / 2 + cardWidth / 2;
-        const startY = 110;
+        const startY = 150;
 
         characterKeys.forEach((key, index) => {
             const col = index % cols;
@@ -80,6 +80,26 @@ class CharacterSelectScene extends Phaser.Scene {
             fontSize: '22px',
             color: '#00ff00',
         }).setOrigin(0.5);
+
+        // Back button - positioned in top left corner, above cards
+        const backBtn = this.add.text(30, 610, '<< BACK', {
+            fontFamily: 'Arial Black',
+            fontSize: '16px',
+            color: '#FFB100',
+            backgroundColor: '#0B1D6B',
+            padding: { x: 15, y: 8 }
+        }).setInteractive({ useHandCursor: true }).setDepth(100);
+        backBtn.on('pointerdown', () => {
+            this.scene.start('MenuScene');
+        });
+
+        backBtn.on('pointerover', () => {
+            backBtn.setStyle({ backgroundColor: '#1A4CFF', color: '#FFF06A' });
+        });
+        backBtn.on('pointerout', () => {
+            backBtn.setStyle({ backgroundColor: '#0B1D6B', color: '#FFB100' });
+        });
+
 
         this.confirmContainer.add([confirmBg, confirmText]);
         this.confirmContainer.setSize(200, 44);
@@ -113,6 +133,7 @@ class CharacterSelectScene extends Phaser.Scene {
             }
         });
     }
+
 
     createCharacterCard(x, y, key, cardWidth, cardHeight) {
         const container = this.add.container(x, y);
