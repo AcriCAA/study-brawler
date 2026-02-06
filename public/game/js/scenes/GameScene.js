@@ -18,6 +18,8 @@ class GameScene extends Phaser.Scene {
         this.currentBoss = null;
         this.playerState = 'idle';
         this.playerDirection = 'down';
+        this.isFinalBattle = false;
+        this.finalBattleElements = [];
 
         // World scale for Zelda-style view (3x pixel art scale)
         this.worldScale = 3;
@@ -534,6 +536,12 @@ class GameScene extends Phaser.Scene {
             return;
         }
 
+        // Check if this is the final battle (last remaining boss)
+        if (this.totalBosses - this.completedQuestions.size === 1) {
+            this.startFinalBattle(node);
+            return;
+        }
+
         console.log('Starting battle with:', node.question.question_text);
         console.log('Answers:', node.question.answers);
 
@@ -562,6 +570,370 @@ class GameScene extends Phaser.Scene {
             scale: 2,
             duration: 300
         });
+    }
+
+    startFinalBattle(node) {
+        this.isInBattle = true;
+        this.isFinalBattle = true;
+        this.currentBoss = node;
+        this.nearbyBoss = null;
+        this.finalBattleElements = [];
+
+        // Remove proximity indicator
+        if (this.proximityIndicator) {
+            this.proximityIndicator.destroy();
+            this.proximityIndicator = null;
+        }
+        this.hideQuestionPreview();
+
+        const { width, height } = this.cameras.main;
+
+        // Fade background music down
+        if (this.bgMusic && this.bgMusic.isPlaying) {
+            this.tweens.add({
+                targets: this.bgMusic,
+                volume: 0.05,
+                duration: 1500
+            });
+        }
+
+        // Hide HUD during cinematic
+        this.uiContainer.setVisible(false);
+
+        // Create black overlay (fixed to camera)
+        const overlay = this.add.rectangle(width / 2, height / 2, width + 20, height + 20, 0x000000);
+        overlay.setAlpha(0);
+        overlay.setScrollFactor(0);
+        overlay.setDepth(1500);
+        this.finalBattleOverlay = overlay;
+        this.finalBattleElements.push(overlay);
+
+        // Slowly fade map to black
+        this.tweens.add({
+            targets: overlay,
+            alpha: 1,
+            duration: 2000,
+            ease: 'Sine.easeInOut',
+            onComplete: () => {
+                this.showFinalBattleArena(node);
+            }
+        });
+    }
+
+    showFinalBattleArena(node) {
+        const { width, height } = this.cameras.main;
+        const bossKey = node.boss.bossKey;
+
+        // Ambient glow behind boss (top center)
+        const bossGlow = this.add.circle(width * 0.5, height * 0.3, 80, 0xff0000, 0);
+        bossGlow.setScrollFactor(0);
+        bossGlow.setDepth(1550);
+        this.finalBattleElements.push(bossGlow);
+        this.tweens.add({
+            targets: bossGlow,
+            alpha: 0.15,
+            scale: 1.3,
+            duration: 1200,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.easeInOut'
+        });
+
+        // Ambient glow behind player (below boss)
+        const playerGlow = this.add.circle(width * 0.5, height * 0.55, 70, 0x00ffff, 0);
+        playerGlow.setScrollFactor(0);
+        playerGlow.setDepth(1550);
+        this.finalBattleElements.push(playerGlow);
+        this.tweens.add({
+            targets: playerGlow,
+            alpha: 0.15,
+            scale: 1.3,
+            duration: 1200,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.easeInOut',
+            delay: 300
+        });
+
+        // Boss character copy (top center, fixed to camera)
+        const bossCopy = this.add.sprite(width * 0.5, height * 0.3, `${bossKey}_idle`);
+        bossCopy.play(`${bossKey}_idle`);
+        bossCopy.setScale(2.5);
+        bossCopy.setScrollFactor(0);
+        bossCopy.setDepth(1600);
+        bossCopy.setAlpha(0);
+        this.finalBattleElements.push(bossCopy);
+        this.finalBattleBossCopy = bossCopy;
+
+        // Player character copy (below boss, fixed to camera)
+        const playerCopy = this.add.sprite(width * 0.5, height * 0.55, this.characterKey);
+        playerCopy.setScale(this.worldScale * 1.5);
+        playerCopy.play(this.characterKey + '_idle_down');
+        playerCopy.setScrollFactor(0);
+        playerCopy.setDepth(1600);
+        playerCopy.setAlpha(0);
+        this.finalBattleElements.push(playerCopy);
+        this.finalBattlePlayerCopy = playerCopy;
+
+        // Fade in combatants
+        this.tweens.add({
+            targets: [bossCopy, playerCopy],
+            alpha: 1,
+            duration: 800,
+            ease: 'Sine.easeIn',
+            onComplete: () => {
+                this.showFinalBattleText(node);
+            }
+        });
+    }
+
+    showFinalBattleText(node) {
+        const { width, height } = this.cameras.main;
+
+        // "FINAL BATTLE!" text
+        const finalText = this.add.text(width / 2, height * 0.18, 'FINAL BATTLE!', {
+            fontFamily: 'Arial Black',
+            fontSize: '52px',
+            color: '#ff4444',
+            stroke: '#000000',
+            strokeThickness: 8
+        }).setOrigin(0.5).setScrollFactor(0).setDepth(1700).setScale(0);
+        this.finalBattleElements.push(finalText);
+        this.finalBattleText = finalText;
+
+        // Dramatic scale-in
+        this.tweens.add({
+            targets: finalText,
+            scale: 1,
+            duration: 600,
+            ease: 'Back.easeOut',
+            onComplete: () => {
+                // Pulse effect
+                this.tweens.add({
+                    targets: finalText,
+                    scale: 1.05,
+                    duration: 400,
+                    yoyo: true,
+                    repeat: 1,
+                    onComplete: () => {
+                        // Shrink text up and show question
+                        this.tweens.add({
+                            targets: finalText,
+                            y: height * 0.08,
+                            scale: 0.6,
+                            duration: 500,
+                            ease: 'Sine.easeInOut',
+                            onComplete: () => {
+                                // Raise battle UI depth above overlay and show question
+                                this.battleUI.setDepth(1800);
+                                this.showBattleUI(node.question);
+                            }
+                        });
+                    }
+                });
+            }
+        });
+    }
+
+    handleFinalBattleCorrectAnswer(question) {
+        const { width, height } = this.cameras.main;
+
+        // Hide battle UI
+        this.hideBattleUI();
+
+        // Camera flash
+        this.cameras.main.flash(300, 255, 255, 0);
+
+        // Player copy attack animation
+        if (this.finalBattlePlayerCopy) {
+            this.tweens.add({
+                targets: this.finalBattlePlayerCopy,
+                scaleX: this.worldScale * 1.5 * 1.3,
+                scaleY: this.worldScale * 1.5 * 0.7,
+                duration: 100,
+                yoyo: true,
+                repeat: 2
+            });
+        }
+
+        // FINISH text
+        const finishText = this.add.text(width / 2, height / 2 - 50, 'FINISH!', {
+            fontFamily: 'Arial Black',
+            fontSize: '64px',
+            color: '#ffd700',
+            stroke: '#000000',
+            strokeThickness: 8
+        }).setOrigin(0.5).setScale(0).setScrollFactor(0).setDepth(1800);
+
+        this.tweens.add({
+            targets: finishText,
+            scale: 1.5,
+            duration: 300,
+            ease: 'Back.easeOut',
+            onComplete: () => {
+                this.tweens.add({
+                    targets: finishText,
+                    alpha: 0,
+                    duration: 500,
+                    delay: 500,
+                    onComplete: () => finishText.destroy()
+                });
+            }
+        });
+
+        // Boss copy defeat animation
+        if (this.finalBattleBossCopy) {
+            this.time.delayedCall(300, () => {
+                this.createExplosion(
+                    this.finalBattleBossCopy.x + this.cameras.main.scrollX,
+                    this.finalBattleBossCopy.y + this.cameras.main.scrollY,
+                    0xffd700
+                );
+                this.playSound('hit');
+                this.tweens.add({
+                    targets: this.finalBattleBossCopy,
+                    scale: 0,
+                    angle: 720,
+                    duration: 800,
+                    ease: 'Quad.easeIn'
+                });
+            });
+        }
+
+        // After animations, mark boss defeated and trigger victory
+        this.time.delayedCall(2000, () => {
+            // Mark boss as completed
+            this.completedQuestions.add(this.currentBoss.index);
+            this.currentBoss.completed = true;
+            this.currentBoss.setVisible(false);
+            this.updateProgress();
+
+            // Clean up final battle elements
+            this.cleanupFinalBattle();
+
+            // Trigger victory celebration
+            this.showVictoryCelebration();
+        });
+    }
+
+    handleFinalBattleWrongAnswer() {
+        const { width, height } = this.cameras.main;
+
+        // Camera effects
+        this.cameras.main.shake(500, 0.02);
+        this.cameras.main.flash(300, 255, 0, 0);
+
+        // WRONG text on top of overlay
+        const wrongText = this.add.text(width / 2, height / 2 - 60, 'WRONG!', {
+            fontFamily: 'Arial Black',
+            fontSize: '48px',
+            color: '#ff0000',
+            stroke: '#000000',
+            strokeThickness: 6
+        }).setOrigin(0.5).setScrollFactor(0).setDepth(1800);
+
+        this.tweens.add({
+            targets: wrongText,
+            y: wrongText.y - 50,
+            alpha: 0,
+            duration: 1000,
+            onComplete: () => wrongText.destroy()
+        });
+
+        // Boss copy lunge downward at player
+        if (this.finalBattleBossCopy) {
+            this.tweens.add({
+                targets: this.finalBattleBossCopy,
+                y: this.finalBattleBossCopy.y + 30,
+                duration: 100,
+                yoyo: true,
+                repeat: 2
+            });
+        }
+
+        // Hide battle UI
+        this.hideBattleUI();
+
+        // After a delay, check health and revert
+        this.time.delayedCall(1500, () => {
+            if (this.health <= 0) {
+                this.cleanupFinalBattle();
+                this.endGame(false);
+            } else {
+                this.revertFinalBattle();
+            }
+        });
+    }
+
+    revertFinalBattle() {
+        // Fade music back up
+        if (this.bgMusic && this.bgMusic.isPlaying) {
+            this.tweens.add({
+                targets: this.bgMusic,
+                volume: 0.3,
+                duration: 1000
+            });
+        }
+
+        // Destroy all final battle elements except the overlay
+        this.finalBattleElements.forEach(el => {
+            if (el !== this.finalBattleOverlay) {
+                el.destroy();
+            }
+        });
+
+        // Reset battle UI depth
+        this.battleUI.setDepth(1000);
+
+        // Fade overlay out to reveal map
+        this.tweens.add({
+            targets: this.finalBattleOverlay,
+            alpha: 0,
+            duration: 1000,
+            ease: 'Sine.easeInOut',
+            onComplete: () => {
+                this.finalBattleOverlay.destroy();
+                this.finalBattleElements = [];
+                this.finalBattleOverlay = null;
+                this.finalBattlePlayerCopy = null;
+                this.finalBattleBossCopy = null;
+                this.finalBattleText = null;
+                this.isFinalBattle = false;
+
+                // Show HUD
+                this.uiContainer.setVisible(true);
+
+                // Reset battle state
+                this.isInBattle = false;
+                this.battleStarting = false;
+
+                // Player back to idle
+                this.playPlayerAnimation('idle');
+
+                // Flash the question node to draw attention
+                this.flashQuestionNode(this.currentBoss);
+            }
+        });
+    }
+
+    cleanupFinalBattle() {
+        this.isFinalBattle = false;
+
+        // Destroy all final battle visual elements
+        this.finalBattleElements.forEach(el => {
+            if (el && el.destroy) el.destroy();
+        });
+        this.finalBattleElements = [];
+        this.finalBattleOverlay = null;
+        this.finalBattlePlayerCopy = null;
+        this.finalBattleBossCopy = null;
+        this.finalBattleText = null;
+
+        // Reset battle UI depth
+        this.battleUI.setDepth(1000);
+
+        // Show HUD
+        this.uiContainer.setVisible(true);
     }
 
     createUI() {
@@ -836,6 +1208,12 @@ class GameScene extends Phaser.Scene {
         this.scoreText.setText(`Score: ${this.score}`);
         this.playSound('correct');
 
+        if (this.isFinalBattle) {
+            this.isInBattle = true;
+            this.handleFinalBattleCorrectAnswer(question);
+            return;
+        }
+
         // Player attack animation
         this.playPlayerAnimation('attacking');
 
@@ -939,6 +1317,12 @@ class GameScene extends Phaser.Scene {
         this.health -= 25;
         this.updateHealthBar();
         this.playSound('wrong');
+
+        if (this.isFinalBattle) {
+            this.isInBattle = true;
+            this.handleFinalBattleWrongAnswer();
+            return;
+        }
 
         // Screen shake
         this.cameras.main.shake(500, 0.02);
