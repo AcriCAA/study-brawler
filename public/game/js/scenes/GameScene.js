@@ -1288,9 +1288,7 @@ class GameScene extends Phaser.Scene {
         this.questionText.setText(question.question_text);
 
         // Hide touch controls during battle (movement not needed)
-        if (this.touchControls) {
-            this.touchControls.setVisible(false);
-        }
+        this.setTouchControlsVisible(false);
 
         // Shuffle and display answers
         const allAnswers = Phaser.Utils.Array.Shuffle([...question.answers]);
@@ -1324,8 +1322,8 @@ class GameScene extends Phaser.Scene {
             onComplete: () => {
                 this.battleUI.setVisible(false);
                 // Show touch controls again after battle (unless in final battle cinematic)
-                if (this.touchControls && !this.isFinalBattle) {
-                    this.touchControls.setVisible(true);
+                if (!this.isFinalBattle) {
+                    this.setTouchControlsVisible(true);
                 }
             }
         });
@@ -1841,109 +1839,175 @@ class GameScene extends Phaser.Scene {
     createTouchControls() {
         const { width, height } = this.cameras.main;
 
-        // Create touch controls container (fixed to camera)
-        this.touchControls = this.add.container(0, 0);
-        this.touchControls.setDepth(2500);
-        this.touchControls.setScrollFactor(0);
+        // Store all touch control elements (not in a container for better mobile compatibility)
+        this.touchControlElements = [];
 
-        // D-pad configuration
-        const dpadSize = 140;
-        const dpadX = 90;
-        const dpadY = height - 100;
-        const buttonSize = 44;
-        const buttonSpacing = 48;
+        // Virtual joystick configuration
+        const joystickX = 100;
+        const joystickY = height - 120;
+        const joystickRadius = 60;
+        const knobRadius = 30;
 
-        // D-pad base (semi-transparent circle)
-        const dpadBase = this.add.circle(dpadX, dpadY, dpadSize / 2, 0x000000, 0.3);
-        this.touchControls.add(dpadBase);
+        // Joystick base (outer circle)
+        this.joystickBase = this.add.circle(joystickX, joystickY, joystickRadius, 0x000000, 0.4);
+        this.joystickBase.setStrokeStyle(3, 0x00ffff, 0.6);
+        this.joystickBase.setScrollFactor(0);
+        this.joystickBase.setDepth(2500);
+        this.joystickBase.setInteractive({ draggable: false, useHandCursor: false });
+        this.touchControlElements.push(this.joystickBase);
 
-        // D-pad buttons
-        const createDpadButton = (x, y, direction, label) => {
-            const btn = this.add.circle(x, y, buttonSize / 2, 0x333333, 0.8);
-            btn.setStrokeStyle(2, 0x00ffff, 0.8);
-            btn.setInteractive();
+        // Joystick knob (inner circle that moves)
+        this.joystickKnob = this.add.circle(joystickX, joystickY, knobRadius, 0x00ffff, 0.7);
+        this.joystickKnob.setStrokeStyle(2, 0xffffff, 0.8);
+        this.joystickKnob.setScrollFactor(0);
+        this.joystickKnob.setDepth(2501);
+        this.touchControlElements.push(this.joystickKnob);
 
-            const arrow = this.add.text(x, y, label, {
-                fontFamily: 'Arial',
-                fontSize: '20px',
-                color: '#00ffff'
-            }).setOrigin(0.5);
+        // Store joystick center for calculations
+        this.joystickCenter = { x: joystickX, y: joystickY };
+        this.joystickRadius = joystickRadius;
+        this.joystickActive = false;
+        this.joystickPointerId = null;
 
-            btn.on('pointerdown', () => {
-                btn.setFillStyle(0x00ffff, 0.5);
-                this.setTouchDirection(direction, true);
-            });
-
-            btn.on('pointerup', () => {
-                btn.setFillStyle(0x333333, 0.8);
-                this.setTouchDirection(direction, false);
-            });
-
-            btn.on('pointerout', () => {
-                btn.setFillStyle(0x333333, 0.8);
-                this.setTouchDirection(direction, false);
-            });
-
-            this.touchControls.add([btn, arrow]);
-            return btn;
-        };
-
-        // Create directional buttons
-        createDpadButton(dpadX, dpadY - buttonSpacing, 'up', '▲');
-        createDpadButton(dpadX, dpadY + buttonSpacing, 'down', '▼');
-        createDpadButton(dpadX - buttonSpacing, dpadY, 'left', '◀');
-        createDpadButton(dpadX + buttonSpacing, dpadY, 'right', '▶');
-
-        // Action button for entering battle (right side)
-        const actionX = width - 80;
-        const actionY = height - 100;
-
-        const actionBtn = this.add.circle(actionX, actionY, 35, 0x00ff00, 0.6);
-        actionBtn.setStrokeStyle(3, 0xffffff, 0.8);
-        actionBtn.setInteractive();
-
-        const actionLabel = this.add.text(actionX, actionY, 'BATTLE', {
-            fontFamily: 'Arial Black',
-            fontSize: '12px',
-            color: '#ffffff'
-        }).setOrigin(0.5);
-
-        actionBtn.on('pointerdown', () => {
-            actionBtn.setFillStyle(0x00ff00, 1);
-            if (!this.isInBattle && !this.battleStarting && this.nearbyBoss && !this.completedQuestions.has(this.nearbyBoss.index)) {
-                this.battleStarting = true;
-                this.playSound('click');
-                this.startBattle(this.nearbyBoss);
+        // Use scene-level pointer events for better mobile compatibility
+        this.input.on('pointerdown', (pointer) => {
+            // Check if touch is in joystick area (left side of screen)
+            if (pointer.x < width / 2 && !this.isInBattle) {
+                this.joystickActive = true;
+                this.joystickPointerId = pointer.id;
+                this.updateJoystick(pointer);
+            }
+            // Check if touch is on action button area (right side, bottom)
+            else if (pointer.x > width - 150 && pointer.y > height - 180) {
+                this.handleActionButtonPress();
             }
         });
 
-        actionBtn.on('pointerup', () => {
-            actionBtn.setFillStyle(0x00ff00, 0.6);
+        this.input.on('pointermove', (pointer) => {
+            if (this.joystickActive && pointer.id === this.joystickPointerId) {
+                this.updateJoystick(pointer);
+            }
         });
 
-        this.touchControls.add([actionBtn, actionLabel]);
+        this.input.on('pointerup', (pointer) => {
+            if (pointer.id === this.joystickPointerId) {
+                this.resetJoystick();
+            }
+        });
 
-        // Store reference to action button for hiding during battle
-        this.touchActionBtn = actionBtn;
-        this.touchActionLabel = actionLabel;
+        this.input.on('pointerupoutside', (pointer) => {
+            if (pointer.id === this.joystickPointerId) {
+                this.resetJoystick();
+            }
+        });
+
+        // Action button for entering battle (right side)
+        const actionX = width - 80;
+        const actionY = height - 120;
+
+        this.touchActionBtn = this.add.circle(actionX, actionY, 40, 0x00ff00, 0.5);
+        this.touchActionBtn.setStrokeStyle(3, 0xffffff, 0.8);
+        this.touchActionBtn.setScrollFactor(0);
+        this.touchActionBtn.setDepth(2500);
+        this.touchControlElements.push(this.touchActionBtn);
+
+        this.touchActionLabel = this.add.text(actionX, actionY, 'BATTLE', {
+            fontFamily: 'Arial Black',
+            fontSize: '11px',
+            color: '#ffffff'
+        }).setOrigin(0.5);
+        this.touchActionLabel.setScrollFactor(0);
+        this.touchActionLabel.setDepth(2502);
+        this.touchControlElements.push(this.touchActionLabel);
+
+        // Joystick label
+        const joystickLabel = this.add.text(joystickX, joystickY + joystickRadius + 20, 'MOVE', {
+            fontFamily: 'Arial Black',
+            fontSize: '11px',
+            color: '#00ffff'
+        }).setOrigin(0.5);
+        joystickLabel.setScrollFactor(0);
+        joystickLabel.setDepth(2500);
+        this.touchControlElements.push(joystickLabel);
     }
 
-    setTouchDirection(direction, active) {
-        const speed = active ? 1 : 0;
+    updateJoystick(pointer) {
+        const dx = pointer.x - this.joystickCenter.x;
+        const dy = pointer.y - this.joystickCenter.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
 
-        switch (direction) {
-            case 'up':
-                this.touchVelocity.y = active ? -speed : (this.touchVelocity.y < 0 ? 0 : this.touchVelocity.y);
-                break;
-            case 'down':
-                this.touchVelocity.y = active ? speed : (this.touchVelocity.y > 0 ? 0 : this.touchVelocity.y);
-                break;
-            case 'left':
-                this.touchVelocity.x = active ? -speed : (this.touchVelocity.x < 0 ? 0 : this.touchVelocity.x);
-                break;
-            case 'right':
-                this.touchVelocity.x = active ? speed : (this.touchVelocity.x > 0 ? 0 : this.touchVelocity.x);
-                break;
+        // Clamp knob position to joystick radius
+        let knobX, knobY;
+        if (distance > this.joystickRadius) {
+            const angle = Math.atan2(dy, dx);
+            knobX = this.joystickCenter.x + Math.cos(angle) * this.joystickRadius;
+            knobY = this.joystickCenter.y + Math.sin(angle) * this.joystickRadius;
+        } else {
+            knobX = pointer.x;
+            knobY = pointer.y;
+        }
+
+        this.joystickKnob.x = knobX;
+        this.joystickKnob.y = knobY;
+
+        // Calculate normalized velocity (-1 to 1)
+        const maxDistance = this.joystickRadius;
+        const normalizedX = Math.max(-1, Math.min(1, dx / maxDistance));
+        const normalizedY = Math.max(-1, Math.min(1, dy / maxDistance));
+
+        // Apply deadzone (ignore very small movements)
+        const deadzone = 0.2;
+        this.touchVelocity.x = Math.abs(normalizedX) > deadzone ? normalizedX : 0;
+        this.touchVelocity.y = Math.abs(normalizedY) > deadzone ? normalizedY : 0;
+
+        // Visual feedback - highlight knob when active
+        this.joystickKnob.setFillStyle(0x00ffff, 0.9);
+    }
+
+    resetJoystick() {
+        this.joystickActive = false;
+        this.joystickPointerId = null;
+        this.touchVelocity.x = 0;
+        this.touchVelocity.y = 0;
+
+        // Return knob to center
+        if (this.joystickKnob) {
+            this.joystickKnob.x = this.joystickCenter.x;
+            this.joystickKnob.y = this.joystickCenter.y;
+            this.joystickKnob.setFillStyle(0x00ffff, 0.7);
+        }
+    }
+
+    handleActionButtonPress() {
+        if (!this.isInBattle && !this.battleStarting && this.nearbyBoss && !this.completedQuestions.has(this.nearbyBoss.index)) {
+            this.battleStarting = true;
+            this.playSound('click');
+            this.startBattle(this.nearbyBoss);
+
+            // Visual feedback
+            if (this.touchActionBtn) {
+                this.touchActionBtn.setFillStyle(0x00ff00, 1);
+                this.time.delayedCall(200, () => {
+                    if (this.touchActionBtn) {
+                        this.touchActionBtn.setFillStyle(0x00ff00, 0.5);
+                    }
+                });
+            }
+        }
+    }
+
+    setTouchControlsVisible(visible) {
+        if (!this.isTouchDevice) return;
+
+        if (this.touchControlElements) {
+            this.touchControlElements.forEach(el => {
+                if (el && el.setVisible) {
+                    el.setVisible(visible);
+                }
+            });
+        }
+        if (!visible && this.resetJoystick) {
+            this.resetJoystick();
         }
     }
 
@@ -2133,20 +2197,35 @@ class GameScene extends Phaser.Scene {
         // Faster movement for larger world
         const moveSpeed = GameConfig.PLAYER_SPEED * 2;
 
-        if (this.cursors.left.isDown || this.wasd.left.isDown || this.touchVelocity.x < 0) {
+        // Keyboard input (full speed)
+        if (this.cursors.left.isDown || this.wasd.left.isDown) {
             velocityX = -moveSpeed;
             newDirection = 'left';
-        } else if (this.cursors.right.isDown || this.wasd.right.isDown || this.touchVelocity.x > 0) {
+        } else if (this.cursors.right.isDown || this.wasd.right.isDown) {
             velocityX = moveSpeed;
             newDirection = 'right';
         }
+        // Touch joystick input (analog speed based on distance from center)
+        else if (this.touchVelocity.x !== 0) {
+            velocityX = moveSpeed * this.touchVelocity.x;
+            newDirection = this.touchVelocity.x < 0 ? 'left' : 'right';
+        }
 
-        if (this.cursors.up.isDown || this.wasd.up.isDown || this.touchVelocity.y < 0) {
+        // Keyboard input (full speed)
+        if (this.cursors.up.isDown || this.wasd.up.isDown) {
             velocityY = -moveSpeed;
             newDirection = 'up';
-        } else if (this.cursors.down.isDown || this.wasd.down.isDown || this.touchVelocity.y > 0) {
+        } else if (this.cursors.down.isDown || this.wasd.down.isDown) {
             velocityY = moveSpeed;
             newDirection = 'down';
+        }
+        // Touch joystick input (analog speed based on distance from center)
+        else if (this.touchVelocity.y !== 0) {
+            velocityY = moveSpeed * this.touchVelocity.y;
+            // Only change direction to up/down if vertical movement is dominant
+            if (Math.abs(this.touchVelocity.y) > Math.abs(this.touchVelocity.x)) {
+                newDirection = this.touchVelocity.y < 0 ? 'up' : 'down';
+            }
         }
 
         if (velocityX !== 0 || velocityY !== 0) {

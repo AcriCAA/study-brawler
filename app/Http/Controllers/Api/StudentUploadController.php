@@ -4,8 +4,11 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\StudyMaterial;
+use App\Models\User;
+use App\Notifications\StudentUploadedFileNotification;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 
 class StudentUploadController extends Controller
@@ -47,6 +50,10 @@ class StudentUploadController extends Controller
             'approval_status' => 'pending_approval',
             'uploaded_by_student' => true,
         ]);
+
+        // Notify all admin users about the new upload
+        $admins = User::all();
+        Notification::send($admins, new StudentUploadedFileNotification($studyMaterial, $student));
 
         return response()->json([
             'success' => true,
