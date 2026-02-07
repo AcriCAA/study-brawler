@@ -1246,16 +1246,20 @@ class GameScene extends Phaser.Scene {
             align: 'center'
         }).setOrigin(0.5);
 
-        container.add([bg, keyNum, text]);
+        // Create an explicit hit zone for better touch compatibility
+        const hitZone = this.add.rectangle(0, 0, width, height, 0xffffff, 0);
+        hitZone.setInteractive({ useHandCursor: true });
+
+        container.add([bg, keyNum, text, hitZone]);
         container.setSize(width, height);
-        container.setInteractive({ useHandCursor: true });
         container.bg = bg;
         container.text = text;
         container.keyNum = keyNum;
+        container.hitZone = hitZone;
         container.buttonWidth = width;
         container.buttonHeight = height;
 
-        container.on('pointerover', () => {
+        hitZone.on('pointerover', () => {
             if (this.isInBattle) {
                 bg.clear();
                 bg.fillStyle(0x00ffff, 0.3);
@@ -1265,7 +1269,7 @@ class GameScene extends Phaser.Scene {
             }
         });
 
-        container.on('pointerout', () => {
+        hitZone.on('pointerout', () => {
             bg.clear();
             bg.fillStyle(0x222222, 1);
             bg.fillRoundedRect(-width / 2, -height / 2, width, height, 8);
@@ -1273,7 +1277,7 @@ class GameScene extends Phaser.Scene {
             bg.strokeRoundedRect(-width / 2, -height / 2, width, height, 8);
         });
 
-        container.on('pointerdown', () => {
+        hitZone.on('pointerdown', () => {
             if (this.isInBattle) {
                 this.playSound('click');
                 this.checkAnswer(container.currentAnswer);
