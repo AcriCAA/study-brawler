@@ -1307,6 +1307,11 @@ class GameScene extends Phaser.Scene {
             }
         });
 
+        // Show number pad for touch devices
+        if (this.isTouchDevice) {
+            this.showTouchNumberPad(allAnswers.length);
+        }
+
         // Battle start animation - slide up from bottom
         const targetY = this.cameras.main.height - 110;
         this.battleUI.y = this.cameras.main.height + 150;
@@ -1318,7 +1323,88 @@ class GameScene extends Phaser.Scene {
         });
     }
 
+    showTouchNumberPad(answerCount) {
+        // Clean up any existing number pad
+        this.hideTouchNumberPad();
+
+        const { width, height } = this.cameras.main;
+        this.touchNumberPadElements = [];
+
+        // Number pad positioned on the right side
+        const padX = width - 70;
+        const padY = height / 2;
+        const buttonSize = 50;
+        const spacing = 60;
+
+        // Label
+        const label = this.add.text(padX, padY - 140, 'TAP\nANSWER', {
+            fontFamily: 'Arial Black',
+            fontSize: '12px',
+            color: '#00ffff',
+            align: 'center'
+        }).setOrigin(0.5);
+        label.setScrollFactor(0);
+        label.setDepth(3000);
+        this.touchNumberPadElements.push(label);
+
+        // Create number buttons 1-4
+        for (let i = 0; i < Math.min(answerCount, 4); i++) {
+            const btnY = padY - 60 + (i * spacing);
+
+            // Button background
+            const btn = this.add.circle(padX, btnY, buttonSize / 2, 0x222222, 0.9);
+            btn.setStrokeStyle(3, 0x00ffff);
+            btn.setScrollFactor(0);
+            btn.setDepth(3000);
+            btn.setInteractive();
+            this.touchNumberPadElements.push(btn);
+
+            // Button number
+            const numText = this.add.text(padX, btnY, `${i + 1}`, {
+                fontFamily: 'Arial Black',
+                fontSize: '24px',
+                color: '#ffffff'
+            }).setOrigin(0.5);
+            numText.setScrollFactor(0);
+            numText.setDepth(3001);
+            this.touchNumberPadElements.push(numText);
+
+            // Touch handler
+            const answerIndex = i;
+            btn.on('pointerdown', () => {
+                if (this.isInBattle && this.answerButtons[answerIndex] && this.answerButtons[answerIndex].visible) {
+                    // Visual feedback
+                    btn.setFillStyle(0x00ffff, 0.8);
+                    this.playSound('click');
+                    this.checkAnswer(this.answerButtons[answerIndex].currentAnswer);
+                }
+            });
+
+            btn.on('pointerup', () => {
+                btn.setFillStyle(0x222222, 0.9);
+            });
+
+            btn.on('pointerout', () => {
+                btn.setFillStyle(0x222222, 0.9);
+            });
+        }
+    }
+
+    hideTouchNumberPad() {
+        if (this.touchNumberPadElements) {
+            this.touchNumberPadElements.forEach(el => {
+                if (el && el.destroy) {
+                    el.destroy();
+                }
+            });
+            this.touchNumberPadElements = [];
+        }
+    }
+
     hideBattleUI() {
+        // Hide touch number pad
+        this.hideTouchNumberPad();
+
         this.tweens.add({
             targets: this.battleUI,
             y: this.cameras.main.height + 200,
