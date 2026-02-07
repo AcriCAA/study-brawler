@@ -1870,9 +1870,13 @@ class GameScene extends Phaser.Scene {
         this.joystickPointerId = null;
 
         // Use scene-level pointer events for better mobile compatibility
+        // These only activate when NOT in battle to avoid interfering with answer buttons
         this.input.on('pointerdown', (pointer) => {
+            // Skip all touch control handling when in battle - let answer buttons work
+            if (this.isInBattle) return;
+
             // Check if touch is in joystick area (left side of screen)
-            if (pointer.x < width / 2 && !this.isInBattle) {
+            if (pointer.x < width / 2) {
                 this.joystickActive = true;
                 this.joystickPointerId = pointer.id;
                 this.updateJoystick(pointer);
@@ -1884,6 +1888,7 @@ class GameScene extends Phaser.Scene {
         });
 
         this.input.on('pointermove', (pointer) => {
+            if (this.isInBattle) return;
             if (this.joystickActive && pointer.id === this.joystickPointerId) {
                 this.updateJoystick(pointer);
             }
