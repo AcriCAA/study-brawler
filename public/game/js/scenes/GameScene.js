@@ -1583,24 +1583,51 @@ class GameScene extends Phaser.Scene {
     checkTileCollision(worldX, worldY) {
         if (!this.decorationLayer) return false;
 
-        // Use the layer's built-in world coordinate conversion (handles scale automatically)
         const tile = this.decorationLayer.getTileAtWorldXY(worldX, worldY);
         return tile !== null;
     }
 
     // Check collision for a rectangular area (player hitbox)
     checkAreaCollision(worldX, worldY) {
-        // Use a small hitbox at the player's feet
-        const halfW = 6 * this.worldScale;
-        const halfH = 4 * this.worldScale;
-        const footY = worldY + 8 * this.worldScale; // Offset to feet
+        const halfW = 8 * this.worldScale;
+        const halfH = 5 * this.worldScale;
+        const footY = worldY + 8 * this.worldScale;
 
-        // Check corners and center of the hitbox
+        // Check 9 points: corners, edge midpoints, and center
         return this.checkTileCollision(worldX - halfW, footY - halfH) ||
                this.checkTileCollision(worldX + halfW, footY - halfH) ||
                this.checkTileCollision(worldX - halfW, footY + halfH) ||
                this.checkTileCollision(worldX + halfW, footY + halfH) ||
+               this.checkTileCollision(worldX, footY - halfH) ||
+               this.checkTileCollision(worldX, footY + halfH) ||
+               this.checkTileCollision(worldX - halfW, footY) ||
+               this.checkTileCollision(worldX + halfW, footY) ||
                this.checkTileCollision(worldX, footY);
+    }
+
+    // Push player out of collision when stuck inside a tile
+    pushOutOfCollision() {
+        if (!this.checkAreaCollision(this.player.x, this.player.y)) return;
+
+        const step = 2 * this.worldScale;
+        for (let dist = step; dist <= 48 * this.worldScale; dist += step) {
+            // Try 8 directions to find nearest clear spot
+            const directions = [
+                { x: 0, y: -1 }, { x: 0, y: 1 }, { x: -1, y: 0 }, { x: 1, y: 0 },
+                { x: -1, y: -1 }, { x: 1, y: -1 }, { x: -1, y: 1 }, { x: 1, y: 1 }
+            ];
+            for (const dir of directions) {
+                const testX = this.player.x + dir.x * dist;
+                const testY = this.player.y + dir.y * dist;
+                if (!this.checkAreaCollision(testX, testY)) {
+                    this.player.x = testX;
+                    this.player.y = testY;
+                    this.playerShadow.x = this.player.x;
+                    this.playerShadow.y = this.player.y + 24;
+                    return;
+                }
+            }
+        }
     }
 
     setupControls() {
@@ -1858,11 +1885,19 @@ class GameScene extends Phaser.Scene {
             let newX = Phaser.Math.Clamp(this.player.x + velocityX * delta, this.playerBounds.minX, this.playerBounds.maxX);
             let newY = Phaser.Math.Clamp(this.player.y + velocityY * delta, this.playerBounds.minY, this.playerBounds.maxY);
 
+            // If currently stuck inside collision, push out first
+            if (this.checkAreaCollision(this.player.x, this.player.y)) {
+                this.pushOutOfCollision();
+            }
+
             // Check X and Y axes independently for wall sliding
-            if (!this.checkAreaCollision(newX, this.player.y)) {
+            const canMoveX = !this.checkAreaCollision(newX, this.player.y);
+            const canMoveY = !this.checkAreaCollision(this.player.x, newY);
+
+            if (canMoveX) {
                 this.player.x = newX;
             }
-            if (!this.checkAreaCollision(this.player.x, newY)) {
+            if (canMoveY) {
                 this.player.y = newY;
             }
             this.playerShadow.x = this.player.x;

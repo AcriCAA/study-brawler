@@ -6,15 +6,13 @@ window.addEventListener('load', () => {
         height: GameConfig.HEIGHT,
         parent: 'game-container',
         backgroundColor: GameConfig.COLORS.BACKGROUND,
-        pixelArt: true,  // Crisp pixel art rendering
-        roundPixels: true,  // Prevent sub-pixel rendering
+        roundPixels: true,  // Prevent sub-pixel rendering for sprites
         scale: {
             mode: Phaser.Scale.FIT,
             autoCenter: Phaser.Scale.CENTER_BOTH,
         },
         render: {
-            antialias: false,  // Disable anti-aliasing for pixel art
-            pixelArt: true,
+            antialias: false,  // NEAREST texture filtering keeps pixel art sprites crisp
         },
         dom: {
             createContainer: true  // Enable DOM element support for login form

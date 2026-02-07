@@ -3,6 +3,7 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\StudentResource\Pages;
+use App\Models\Level;
 use App\Models\Student;
 use App\Services\UsernameGeneratorService;
 use Filament\Forms;
@@ -54,6 +55,17 @@ class StudentResource extends Resource
                             ->default(0)
                             ->disabled(),
                     ])->columns(2),
+
+                Forms\Components\Section::make('Assigned Levels')
+                    ->schema([
+                        Forms\Components\Select::make('assignedLevels')
+                            ->label('Levels assigned to this student')
+                            ->multiple()
+                            ->relationship('assignedLevels', 'title')
+                            ->preload()
+                            ->searchable(),
+                    ])
+                    ->visible(fn ($record) => $record !== null),
 
                 Forms\Components\Section::make('Login Credentials')
                     ->schema([

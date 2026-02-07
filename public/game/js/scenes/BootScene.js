@@ -31,12 +31,8 @@ class BootScene extends Phaser.Scene {
         this.animationComplete = false;
         this.loadingComplete = false;
 
-        // Load logo FIRST (priority) so we can display it during loading
-        this.load.svg('logo', '/game/assets/logo.svg', { width: 840, height: 156 });
-
-        // Once logo is loaded, start the 2 second zoom animation
-        this.load.once('filecomplete-svg-logo', () => {
-            // Create logo in center of screen
+        // Logo animation setup
+        const startLogoAnimation = () => {
             this.logo = this.add.image(width / 2, height / 2, 'logo');
             this.logo.setScale(0.1); // Start small
             this.logo.setOrigin(0.5);
@@ -53,7 +49,16 @@ class BootScene extends Phaser.Scene {
                     this.checkReadyToExplode();
                 }
             });
-        });
+        };
+
+        // If logo is already cached (e.g., from LoginScene), start animation directly.
+        // Otherwise load it first, then start on filecomplete.
+        if (this.textures.exists('logo')) {
+            startLogoAnimation();
+        } else {
+            this.load.svg('logo', '/game/assets/logo.svg', { width: 840, height: 156 });
+            this.load.once('filecomplete-svg-logo', startLogoAnimation);
+        }
 
         // Update loading text with progress
         this.load.on('progress', (value) => {
@@ -182,15 +187,11 @@ class BootScene extends Phaser.Scene {
             this.load.tilemapTiledJSON('map_' + mapKey, '/game/assets/maps/' + mapKey + '.json');
         });
 
-        // Load logo (single line version - wider aspect ratio)
-        this.load.svg('logo', '/game/assets/logo.svg', { width: 840, height: 156 });
-
-        // Load audio files
-        const availableBgm = ['bgm_battle', 'bgm_battle2'];
-        availableBgm.forEach(bgmKey => {
+        // Load audio files - base set (menu + common BGM)
+        const baseBgm = ['bgm_battle', 'bgm_battle2', 'bgm_menu'];
+        baseBgm.forEach(bgmKey => {
             this.load.audio(bgmKey, '/game/assets/audio/' + bgmKey + '.ogg');
         });
-        this.load.audio('bgm_menu', '/game/assets/audio/bgm_menu.ogg');
         this.load.audio('sfx_correct', '/game/assets/audio/correct.wav');
         this.load.audio('sfx_wrong', '/game/assets/audio/wrong.wav');
         this.load.audio('sfx_victory', '/game/assets/audio/victory.wav');
@@ -310,11 +311,35 @@ class BootScene extends Phaser.Scene {
     }
 
     async loadGameData() {
+        const proceedToNextScene = () => {
+            if (!this.registry.get('selectedCharacter')) {
+                this.scene.start('CharacterSelectScene');
+            } else {
+                this.scene.start('MenuScene');
+            }
+        };
+
         try {
             // Fetch levels for this student (using authenticated request)
             const levelsResponse = await GameConfig.fetchAuth('/levels');
             const levelsData = await levelsResponse.json();
-            this.registry.set('levels', levelsData.data || []);
+            const levels = levelsData.data || [];
+            this.registry.set('levels', levels);
+
+            // Dynamically load any BGM tracks referenced by levels that aren't already cached
+            const baseBgm = ['bgm_battle', 'bgm_battle2', 'bgm_menu'];
+            const levelBgmKeys = [...new Set(levels.map(l => l.bgm_key).filter(Boolean))];
+            const missingBgm = levelBgmKeys.filter(key => !baseBgm.includes(key) && !this.cache.audio.has(key));
+
+            if (missingBgm.length > 0) {
+                missingBgm.forEach(key => {
+                    this.load.audio(key, '/game/assets/audio/' + key + '.ogg');
+                });
+                await new Promise(resolve => {
+                    this.load.once('complete', resolve);
+                    this.load.start();
+                });
+            }
 
             // Fetch notifications (using authenticated request)
             const notificationsResponse = await GameConfig.fetchAuth('/notifications');
@@ -330,25 +355,14 @@ class BootScene extends Phaser.Scene {
                 this.registry.set('currentStudent', meData.data);
             }
 
-            // If no character selected yet, go to character select first
-            if (!this.registry.get('selectedCharacter')) {
-                this.scene.start('CharacterSelectScene');
-            } else {
-                this.scene.start('MenuScene');
-            }
+            proceedToNextScene();
         } catch (error) {
             console.error('Failed to load game data:', error);
-            // If there's an auth error, it will redirect to login automatically
-            // For other errors, start anyway with empty data
             this.registry.set('levels', []);
             this.registry.set('notifications', []);
             this.registry.set('unreadNotificationCount', 0);
 
-            if (!this.registry.get('selectedCharacter')) {
-                this.scene.start('CharacterSelectScene');
-            } else {
-                this.scene.start('MenuScene');
-            }
+            proceedToNextScene();
         }
     }
 
