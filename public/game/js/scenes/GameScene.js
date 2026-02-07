@@ -23,6 +23,10 @@ class GameScene extends Phaser.Scene {
 
         // World scale for Zelda-style view (3x pixel art scale)
         this.worldScale = 3;
+
+        // Touch controls state
+        this.isTouchDevice = false;
+        this.touchVelocity = { x: 0, y: 0 };
     }
 
     create() {
@@ -57,6 +61,9 @@ class GameScene extends Phaser.Scene {
 
         // Setup controls
         this.setupControls();
+
+        // Detect touch device and create touch controls if needed
+        this.detectTouchDevice();
 
         // Create pause button
         this.createPauseButton();
@@ -588,13 +595,34 @@ class GameScene extends Phaser.Scene {
 
         const { width, height } = this.cameras.main;
 
-        // Fade background music down
+        // Fade out current music and switch to final battle music
         if (this.bgMusic && this.bgMusic.isPlaying) {
             this.tweens.add({
                 targets: this.bgMusic,
-                volume: 0.05,
-                duration: 1500
+                volume: 0,
+                duration: 1500,
+                onComplete: () => {
+                    this.bgMusic.stop();
+                    // Start final battle music
+                    this.finalBattleMusic = this.sound.add('bgm_final_battle', {
+                        volume: 0,
+                        loop: true
+                    });
+                    this.finalBattleMusic.play();
+                    this.tweens.add({
+                        targets: this.finalBattleMusic,
+                        volume: 0.4,
+                        duration: 1000
+                    });
+                }
             });
+        } else {
+            // No music playing, just start final battle music
+            this.finalBattleMusic = this.sound.add('bgm_final_battle', {
+                volume: 0.4,
+                loop: true
+            });
+            this.finalBattleMusic.play();
         }
 
         // Hide HUD during cinematic
@@ -690,6 +718,9 @@ class GameScene extends Phaser.Scene {
     showFinalBattleText(node) {
         const { width, height } = this.cameras.main;
 
+        // Create health bar for final battle (top of screen)
+        this.createFinalBattleHealthBar();
+
         // "FINAL BATTLE!" text
         const finalText = this.add.text(width / 2, height * 0.18, 'FINAL BATTLE!', {
             fontFamily: 'Arial Black',
@@ -719,7 +750,7 @@ class GameScene extends Phaser.Scene {
                         // Shrink text up and show question
                         this.tweens.add({
                             targets: finalText,
-                            y: height * 0.08,
+                            y: height * 0.12,
                             scale: 0.6,
                             duration: 500,
                             ease: 'Sine.easeInOut',
@@ -819,9 +850,14 @@ class GameScene extends Phaser.Scene {
     handleFinalBattleWrongAnswer() {
         const { width, height } = this.cameras.main;
 
-        // Camera effects
+        // Update the final battle health bar
+        this.updateFinalBattleHealthBar();
+
+        // Camera shake
         this.cameras.main.shake(500, 0.02);
-        this.cameras.main.flash(300, 255, 0, 0);
+
+        // Flash white multiple times on the overlay
+        this.flashFinalBattleOverlay();
 
         // WRONG text on top of overlay
         const wrongText = this.add.text(width / 2, height / 2 - 60, 'WRONG!', {
@@ -830,7 +866,7 @@ class GameScene extends Phaser.Scene {
             color: '#ff0000',
             stroke: '#000000',
             strokeThickness: 6
-        }).setOrigin(0.5).setScrollFactor(0).setDepth(1800);
+        }).setOrigin(0.5).setScrollFactor(0).setDepth(1900);
 
         this.tweens.add({
             targets: wrongText,
@@ -851,17 +887,113 @@ class GameScene extends Phaser.Scene {
             });
         }
 
-        // Hide battle UI
+        // Player copy recoil animation
+        if (this.finalBattlePlayerCopy) {
+            this.tweens.add({
+                targets: this.finalBattlePlayerCopy,
+                y: this.finalBattlePlayerCopy.y + 15,
+                duration: 100,
+                yoyo: true,
+                repeat: 1
+            });
+        }
+
+        // Hide battle UI briefly
         this.hideBattleUI();
 
-        // After a delay, check health and revert
+        // After a delay, check health - if alive, show battle UI again to retry
         this.time.delayedCall(1500, () => {
             if (this.health <= 0) {
                 this.cleanupFinalBattle();
                 this.endGame(false);
             } else {
-                this.revertFinalBattle();
+                // Stay in battle! Show the battle UI again so player can retry
+                this.isInBattle = true;
+                this.showBattleUI(this.currentBoss.question);
             }
+        });
+    }
+
+    createFinalBattleHealthBar() {
+        const { width } = this.cameras.main;
+
+        // Health bar background
+        const healthBg = this.add.graphics();
+        healthBg.fillStyle(0x333333, 0.9);
+        healthBg.fillRoundedRect(width / 2 - 150, 15, 300, 28, 6);
+        healthBg.lineStyle(2, 0x00ffff, 0.8);
+        healthBg.strokeRoundedRect(width / 2 - 150, 15, 300, 28, 6);
+        healthBg.setScrollFactor(0);
+        healthBg.setDepth(1750);
+        this.finalBattleElements.push(healthBg);
+
+        // Health bar fill
+        this.finalBattleHealthBar = this.add.graphics();
+        this.finalBattleHealthBar.setScrollFactor(0);
+        this.finalBattleHealthBar.setDepth(1751);
+        this.finalBattleElements.push(this.finalBattleHealthBar);
+        this.updateFinalBattleHealthBar();
+
+        // Health icon
+        const healthIcon = this.add.text(width / 2 - 170, 18, '❤️', { fontSize: '20px' });
+        healthIcon.setScrollFactor(0);
+        healthIcon.setDepth(1752);
+        this.finalBattleElements.push(healthIcon);
+
+        // Health text
+        this.finalBattleHealthText = this.add.text(width / 2, 29, `${this.health}/${GameConfig.PLAYER_HEALTH}`, {
+            fontFamily: 'Arial Black',
+            fontSize: '14px',
+            color: '#ffffff'
+        }).setOrigin(0.5);
+        this.finalBattleHealthText.setScrollFactor(0);
+        this.finalBattleHealthText.setDepth(1752);
+        this.finalBattleElements.push(this.finalBattleHealthText);
+    }
+
+    updateFinalBattleHealthBar() {
+        if (!this.finalBattleHealthBar) return;
+
+        const { width } = this.cameras.main;
+        this.finalBattleHealthBar.clear();
+
+        const healthPercent = this.health / GameConfig.PLAYER_HEALTH;
+        const barWidth = 296 * healthPercent;
+        const color = healthPercent > 0.5 ? 0x00ff00 : healthPercent > 0.25 ? 0xffff00 : 0xff0000;
+
+        this.finalBattleHealthBar.fillStyle(color, 1);
+        this.finalBattleHealthBar.fillRoundedRect(width / 2 - 148, 17, barWidth, 24, 5);
+
+        // Update text if it exists
+        if (this.finalBattleHealthText) {
+            this.finalBattleHealthText.setText(`${this.health}/${GameConfig.PLAYER_HEALTH}`);
+        }
+    }
+
+    flashFinalBattleOverlay() {
+        if (!this.finalBattleOverlay) return;
+
+        // Create a white flash overlay on top
+        const { width, height } = this.cameras.main;
+        const flashOverlay = this.add.rectangle(width / 2, height / 2, width + 20, height + 20, 0xffffff);
+        flashOverlay.setAlpha(0);
+        flashOverlay.setScrollFactor(0);
+        flashOverlay.setDepth(1850);
+
+        // Flash white 3 times
+        let flashCount = 0;
+        const flashTimer = this.time.addEvent({
+            delay: 100,
+            repeat: 5,
+            callback: () => {
+                flashCount++;
+                flashOverlay.setAlpha(flashCount % 2 === 1 ? 0.8 : 0);
+            }
+        });
+
+        // Clean up flash overlay after animation
+        this.time.delayedCall(700, () => {
+            flashOverlay.destroy();
         });
     }
 
@@ -919,6 +1051,12 @@ class GameScene extends Phaser.Scene {
     cleanupFinalBattle() {
         this.isFinalBattle = false;
 
+        // Stop final battle music
+        if (this.finalBattleMusic && this.finalBattleMusic.isPlaying) {
+            this.finalBattleMusic.stop();
+            this.finalBattleMusic = null;
+        }
+
         // Destroy all final battle visual elements
         this.finalBattleElements.forEach(el => {
             if (el && el.destroy) el.destroy();
@@ -928,6 +1066,8 @@ class GameScene extends Phaser.Scene {
         this.finalBattlePlayerCopy = null;
         this.finalBattleBossCopy = null;
         this.finalBattleText = null;
+        this.finalBattleHealthBar = null;
+        this.finalBattleHealthText = null;
 
         // Reset battle UI depth
         this.battleUI.setDepth(1000);
@@ -1147,6 +1287,11 @@ class GameScene extends Phaser.Scene {
         this.battleUI.setVisible(true);
         this.questionText.setText(question.question_text);
 
+        // Hide touch controls during battle (movement not needed)
+        if (this.touchControls) {
+            this.touchControls.setVisible(false);
+        }
+
         // Shuffle and display answers
         const allAnswers = Phaser.Utils.Array.Shuffle([...question.answers]);
 
@@ -1178,6 +1323,10 @@ class GameScene extends Phaser.Scene {
             duration: 300,
             onComplete: () => {
                 this.battleUI.setVisible(false);
+                // Show touch controls again after battle (unless in final battle cinematic)
+                if (this.touchControls && !this.isFinalBattle) {
+                    this.touchControls.setVisible(true);
+                }
             }
         });
     }
@@ -1559,7 +1708,12 @@ class GameScene extends Phaser.Scene {
             color: '#00ffff'
         }).setOrigin(0.5);
 
-        const text = this.add.text(0, 20, 'Move: WASD or Arrow Keys\nExplore the map to find bosses!\nCheck the mini-map in the corner\n\nApproach a boss and press ENTER to battle!\nAnswer with keys 1-4 or click', {
+        // Show different instructions for touch vs keyboard
+        const instructionText = this.isTouchDevice
+            ? 'Use the D-pad to move around\nExplore the map to find bosses!\nCheck the mini-map in the corner\n\nTap a boss or press BATTLE to fight!\nTap answers to select'
+            : 'Move: WASD or Arrow Keys\nExplore the map to find bosses!\nCheck the mini-map in the corner\n\nApproach a boss and press ENTER to battle!\nAnswer with keys 1-4 or click';
+
+        const text = this.add.text(0, 20, instructionText, {
             fontFamily: 'Arial',
             fontSize: '14px',
             color: '#ffffff',
@@ -1668,6 +1822,129 @@ class GameScene extends Phaser.Scene {
                 }
             });
         });
+    }
+
+    detectTouchDevice() {
+        // Detect if user is on a touch device (tablet or phone)
+        this.isTouchDevice = (
+            'ontouchstart' in window ||
+            navigator.maxTouchPoints > 0 ||
+            navigator.msMaxTouchPoints > 0 ||
+            (window.matchMedia && window.matchMedia('(pointer: coarse)').matches)
+        );
+
+        if (this.isTouchDevice) {
+            this.createTouchControls();
+        }
+    }
+
+    createTouchControls() {
+        const { width, height } = this.cameras.main;
+
+        // Create touch controls container (fixed to camera)
+        this.touchControls = this.add.container(0, 0);
+        this.touchControls.setDepth(2500);
+        this.touchControls.setScrollFactor(0);
+
+        // D-pad configuration
+        const dpadSize = 140;
+        const dpadX = 90;
+        const dpadY = height - 100;
+        const buttonSize = 44;
+        const buttonSpacing = 48;
+
+        // D-pad base (semi-transparent circle)
+        const dpadBase = this.add.circle(dpadX, dpadY, dpadSize / 2, 0x000000, 0.3);
+        this.touchControls.add(dpadBase);
+
+        // D-pad buttons
+        const createDpadButton = (x, y, direction, label) => {
+            const btn = this.add.circle(x, y, buttonSize / 2, 0x333333, 0.8);
+            btn.setStrokeStyle(2, 0x00ffff, 0.8);
+            btn.setInteractive();
+
+            const arrow = this.add.text(x, y, label, {
+                fontFamily: 'Arial',
+                fontSize: '20px',
+                color: '#00ffff'
+            }).setOrigin(0.5);
+
+            btn.on('pointerdown', () => {
+                btn.setFillStyle(0x00ffff, 0.5);
+                this.setTouchDirection(direction, true);
+            });
+
+            btn.on('pointerup', () => {
+                btn.setFillStyle(0x333333, 0.8);
+                this.setTouchDirection(direction, false);
+            });
+
+            btn.on('pointerout', () => {
+                btn.setFillStyle(0x333333, 0.8);
+                this.setTouchDirection(direction, false);
+            });
+
+            this.touchControls.add([btn, arrow]);
+            return btn;
+        };
+
+        // Create directional buttons
+        createDpadButton(dpadX, dpadY - buttonSpacing, 'up', '▲');
+        createDpadButton(dpadX, dpadY + buttonSpacing, 'down', '▼');
+        createDpadButton(dpadX - buttonSpacing, dpadY, 'left', '◀');
+        createDpadButton(dpadX + buttonSpacing, dpadY, 'right', '▶');
+
+        // Action button for entering battle (right side)
+        const actionX = width - 80;
+        const actionY = height - 100;
+
+        const actionBtn = this.add.circle(actionX, actionY, 35, 0x00ff00, 0.6);
+        actionBtn.setStrokeStyle(3, 0xffffff, 0.8);
+        actionBtn.setInteractive();
+
+        const actionLabel = this.add.text(actionX, actionY, 'BATTLE', {
+            fontFamily: 'Arial Black',
+            fontSize: '12px',
+            color: '#ffffff'
+        }).setOrigin(0.5);
+
+        actionBtn.on('pointerdown', () => {
+            actionBtn.setFillStyle(0x00ff00, 1);
+            if (!this.isInBattle && !this.battleStarting && this.nearbyBoss && !this.completedQuestions.has(this.nearbyBoss.index)) {
+                this.battleStarting = true;
+                this.playSound('click');
+                this.startBattle(this.nearbyBoss);
+            }
+        });
+
+        actionBtn.on('pointerup', () => {
+            actionBtn.setFillStyle(0x00ff00, 0.6);
+        });
+
+        this.touchControls.add([actionBtn, actionLabel]);
+
+        // Store reference to action button for hiding during battle
+        this.touchActionBtn = actionBtn;
+        this.touchActionLabel = actionLabel;
+    }
+
+    setTouchDirection(direction, active) {
+        const speed = active ? 1 : 0;
+
+        switch (direction) {
+            case 'up':
+                this.touchVelocity.y = active ? -speed : (this.touchVelocity.y < 0 ? 0 : this.touchVelocity.y);
+                break;
+            case 'down':
+                this.touchVelocity.y = active ? speed : (this.touchVelocity.y > 0 ? 0 : this.touchVelocity.y);
+                break;
+            case 'left':
+                this.touchVelocity.x = active ? -speed : (this.touchVelocity.x < 0 ? 0 : this.touchVelocity.x);
+                break;
+            case 'right':
+                this.touchVelocity.x = active ? speed : (this.touchVelocity.x > 0 ? 0 : this.touchVelocity.x);
+                break;
+        }
     }
 
     createPauseButton() {
@@ -1856,18 +2133,18 @@ class GameScene extends Phaser.Scene {
         // Faster movement for larger world
         const moveSpeed = GameConfig.PLAYER_SPEED * 2;
 
-        if (this.cursors.left.isDown || this.wasd.left.isDown) {
+        if (this.cursors.left.isDown || this.wasd.left.isDown || this.touchVelocity.x < 0) {
             velocityX = -moveSpeed;
             newDirection = 'left';
-        } else if (this.cursors.right.isDown || this.wasd.right.isDown) {
+        } else if (this.cursors.right.isDown || this.wasd.right.isDown || this.touchVelocity.x > 0) {
             velocityX = moveSpeed;
             newDirection = 'right';
         }
 
-        if (this.cursors.up.isDown || this.wasd.up.isDown) {
+        if (this.cursors.up.isDown || this.wasd.up.isDown || this.touchVelocity.y < 0) {
             velocityY = -moveSpeed;
             newDirection = 'up';
-        } else if (this.cursors.down.isDown || this.wasd.down.isDown) {
+        } else if (this.cursors.down.isDown || this.wasd.down.isDown || this.touchVelocity.y > 0) {
             velocityY = moveSpeed;
             newDirection = 'down';
         }
@@ -1943,10 +2220,11 @@ class GameScene extends Phaser.Scene {
 
             // Show new indicator if near a boss
             if (this.nearbyBoss) {
+                const promptText = this.isTouchDevice ? 'Tap BATTLE button!' : 'Press ENTER to battle!';
                 this.proximityIndicator = this.add.text(
                     this.nearbyBoss.x,
                     this.nearbyBoss.y - 60,
-                    'Press ENTER to battle!',
+                    promptText,
                     {
                         fontFamily: 'Arial Black',
                         fontSize: '16px',

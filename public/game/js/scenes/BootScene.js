@@ -188,7 +188,7 @@ class BootScene extends Phaser.Scene {
         });
 
         // Load audio files - base set (menu + common BGM)
-        const baseBgm = ['bgm_battle', 'bgm_battle2', 'bgm_menu'];
+        const baseBgm = ['bgm_battle', 'bgm_battle2', 'bgm_menu', 'bgm_final_battle'];
         baseBgm.forEach(bgmKey => {
             this.load.audio(bgmKey, '/game/assets/audio/' + bgmKey + '.ogg');
         });
