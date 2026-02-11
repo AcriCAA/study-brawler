@@ -24,6 +24,7 @@ class EditStudyMaterial extends EditRecord
                     && in_array($this->record->status, ['pending', 'failed'])
                     && $this->record->isApproved()
                     && $this->record->file_path
+                    && $this->record->levels()->doesntExist()
                 )
                 ->requiresConfirmation()
                 ->modalHeading('Parse with AI')

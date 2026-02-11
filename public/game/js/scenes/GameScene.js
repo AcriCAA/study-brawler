@@ -399,14 +399,19 @@ class GameScene extends Phaser.Scene {
                     }
                 }
 
-                // Check that boss doesn't overlap decoration tiles
+                // Check that boss doesn't overlap obstacles and player can reach it
                 if (!tooClose) {
-                    const bossRadius = 40 * this.worldScale;
-                    const onObstacle = this.checkTileCollision(x, y) ||
-                        this.checkTileCollision(x - bossRadius, y) ||
-                        this.checkTileCollision(x + bossRadius, y) ||
-                        this.checkTileCollision(x, y - bossRadius) ||
-                        this.checkTileCollision(x, y + bossRadius);
+                    const bossRadius = 80 * this.worldScale;
+                    const diag = bossRadius * 0.7; // ~cos(45°)
+                    const onObstacle = this.checkObstacleTile(x, y) ||
+                        this.checkObstacleTile(x - bossRadius, y) ||
+                        this.checkObstacleTile(x + bossRadius, y) ||
+                        this.checkObstacleTile(x, y - bossRadius) ||
+                        this.checkObstacleTile(x, y + bossRadius) ||
+                        this.checkObstacleTile(x - diag, y - diag) ||
+                        this.checkObstacleTile(x + diag, y - diag) ||
+                        this.checkObstacleTile(x - diag, y + diag) ||
+                        this.checkObstacleTile(x + diag, y + diag);
                     if (onObstacle) tooClose = true;
                 }
 
@@ -1821,12 +1826,26 @@ class GameScene extends Phaser.Scene {
         });
     }
 
-    // Check if a world position collides with a decoration tile
+    // Check if a world position collides with a decoration tile (used for player movement)
     checkTileCollision(worldX, worldY) {
         if (!this.decorationLayer) return false;
 
         const tile = this.decorationLayer.getTileAtWorldXY(worldX, worldY);
         return tile !== null;
+    }
+
+    // Check if a world position has any obstacle tile (decoration or above layer)
+    // Used for boss placement to avoid spawning on/near buildings
+    checkObstacleTile(worldX, worldY) {
+        if (this.decorationLayer) {
+            const tile = this.decorationLayer.getTileAtWorldXY(worldX, worldY);
+            if (tile !== null) return true;
+        }
+        if (this.aboveLayer) {
+            const tile = this.aboveLayer.getTileAtWorldXY(worldX, worldY);
+            if (tile !== null) return true;
+        }
+        return false;
     }
 
     // Check collision for a rectangular area (player hitbox)
