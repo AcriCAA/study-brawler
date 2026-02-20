@@ -135,7 +135,7 @@ class StudyMaterialResource extends Resource
                 Tables\Columns\TextColumn::make('parse_action')
                     ->label('')
                     ->getStateUsing(function (StudyMaterial $record) {
-                        if (in_array($record->status, ['pending', 'failed']) && $record->isApproved()) {
+                        if (in_array($record->status, ['pending', 'failed']) && $record->isApproved() && $record->levels()->doesntExist()) {
                             return 'Parse with AI';
                         }
                         return '';
