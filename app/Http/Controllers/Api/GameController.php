@@ -3,7 +3,9 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\GameSession;
 use App\Models\Level;
+use App\Models\QuestionAttempt;
 use App\Models\Student;
 use App\Models\StudentProgress;
 use App\Models\Brawler;
@@ -213,6 +215,58 @@ class GameController extends Controller
             'data' => [
                 'selected_brawler' => $brawler->sprite_key,
             ],
+        ]);
+    }
+
+    public function saveSession(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'level_id' => 'required|exists:levels,id',
+            'outcome' => 'required|in:completed,died',
+            'score' => 'required|integer|min:0',
+            'stars' => 'required|integer|min:0|max:3',
+            'started_at' => 'required|date',
+            'ended_at' => 'required|date',
+            'question_attempts' => 'required|array',
+            'question_attempts.*.question_id' => 'required|exists:questions,id',
+            'question_attempts.*.attempts' => 'required|integer|min:1',
+            'question_attempts.*.answered_correctly' => 'required|boolean',
+        ]);
+
+        $student = $request->user();
+
+        if (!$student->assignedLevels()->where('level_id', $validated['level_id'])->exists()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Level not found or not available',
+            ], 404);
+        }
+
+        $session = GameSession::create([
+            'student_id' => $student->id,
+            'level_id' => $validated['level_id'],
+            'outcome' => $validated['outcome'],
+            'score' => $validated['score'],
+            'stars_earned' => $validated['stars'],
+            'started_at' => $validated['started_at'],
+            'ended_at' => $validated['ended_at'],
+        ]);
+
+        $now = now();
+        $attempts = array_map(fn($a) => [
+            'game_session_id' => $session->id,
+            'question_id' => $a['question_id'],
+            'attempts' => $a['attempts'],
+            'answered_correctly' => $a['answered_correctly'],
+            'created_at' => $now,
+            'updated_at' => $now,
+        ], $validated['question_attempts']);
+
+        QuestionAttempt::insert($attempts);
+
+        return response()->json([
+            'success' => true,
+            'data' => ['session_id' => $session->id],
         ]);
     }
 

@@ -51,6 +51,11 @@ class Level extends Model
             ->withTimestamps();
     }
 
+    public function gameSessions(): HasMany
+    {
+        return $this->hasMany(GameSession::class);
+    }
+
     public function scopePublished($query)
     {
         return $query->where('is_published', true);

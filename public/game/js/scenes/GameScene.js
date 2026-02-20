@@ -20,6 +20,8 @@ class GameScene extends Phaser.Scene {
         this.playerDirection = 'down';
         this.isFinalBattle = false;
         this.finalBattleElements = [];
+        this.sessionStartedAt = new Date().toISOString();
+        this.questionAttemptCounts = {};
 
         // World scale for Zelda-style view (3x pixel art scale)
         this.worldScale = 3;
@@ -1434,6 +1436,10 @@ class GameScene extends Phaser.Scene {
         const question = this.currentBoss.question;
         const isCorrect = selectedAnswer === question.correct_answer;
 
+        // Track attempt count for this question
+        const qid = question.id;
+        this.questionAttemptCounts[qid] = (this.questionAttemptCounts[qid] || 0) + 1;
+
         // Disable further input immediately
         this.isInBattle = false;
 
@@ -2578,16 +2584,38 @@ class GameScene extends Phaser.Scene {
         const student = this.registry.get('currentStudent');
         if (!student) return;
 
+        const level_id = this.level.id;
+        const score = this.score;
+        const endedAt = new Date().toISOString();
+        const outcome = completed ? 'completed' : 'died';
+
+        const questionAttempts = this.questionNodes
+            .filter(b => b.question && this.questionAttemptCounts[b.question.id] !== undefined)
+            .map(b => ({
+                question_id: b.question.id,
+                attempts: this.questionAttemptCounts[b.question.id],
+                answered_correctly: b.completed === true,
+            }));
+
         try {
-            await GameConfig.fetchAuth('/progress', {
-                method: 'POST',
-                body: JSON.stringify({
-                    level_id: this.level.id,
-                    score: this.score,
-                    stars,
-                    completed
-                })
-            });
+            await Promise.all([
+                GameConfig.fetchAuth('/progress', {
+                    method: 'POST',
+                    body: JSON.stringify({ level_id, score, stars, completed })
+                }),
+                GameConfig.fetchAuth('/sessions', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        level_id,
+                        outcome,
+                        score,
+                        stars,
+                        started_at: this.sessionStartedAt,
+                        ended_at: endedAt,
+                        question_attempts: questionAttempts,
+                    })
+                }),
+            ]);
         } catch (error) {
             console.error('Failed to save progress:', error);
         }

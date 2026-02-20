@@ -29,6 +29,7 @@ Route::middleware('auth:sanctum')->prefix('game')->group(function () {
 
     // Progress
     Route::post('/progress', [GameController::class, 'saveProgress']);
+    Route::post('/sessions', [GameController::class, 'saveSession']);
 
     // Brawlers
     Route::get('/brawlers', [GameController::class, 'brawlers']);

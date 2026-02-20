@@ -84,4 +84,9 @@ class Student extends Authenticatable
         return $this->belongsToMany(Level::class, 'student_levels')
             ->withTimestamps();
     }
+
+    public function gameSessions(): HasMany
+    {
+        return $this->hasMany(GameSession::class);
+    }
 }
