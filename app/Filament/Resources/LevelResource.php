@@ -123,8 +123,7 @@ class LevelResource extends Resource
 
                 Tables\Columns\TextColumn::make('studyMaterial.title')
                     ->label('Study Material')
-                    ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
+                    ->sortable(),
 
                 Tables\Columns\TextColumn::make('difficulty')
                     ->badge()
@@ -188,8 +187,6 @@ class LevelResource extends Resource
                     ->label('Assign')
                     ->icon('heroicon-o-user-plus')
                     ->color('info')
-                    ->iconButton()
-                    ->tooltip('Assign students')
                     ->form([
                         Forms\Components\Select::make('student_ids')
                             ->label('Select Students')
@@ -213,8 +210,6 @@ class LevelResource extends Resource
                     ->label('Assign All')
                     ->icon('heroicon-o-users')
                     ->color('success')
-                    ->iconButton()
-                    ->tooltip('Assign to all students')
                     ->requiresConfirmation()
                     ->modalHeading('Assign to All Students')
                     ->modalDescription('This will assign this level to all students.')
@@ -229,22 +224,19 @@ class LevelResource extends Resource
                             ->send();
                     }),
 
-                Tables\Actions\EditAction::make()
-                    ->iconButton(),
+                Tables\Actions\EditAction::make(),
 
                 Tables\Actions\Action::make('publish')
+                    ->label('Publish')
                     ->icon('heroicon-o-check-circle')
                     ->color('success')
-                    ->iconButton()
-                    ->tooltip('Publish')
                     ->visible(fn (Level $record) => !$record->is_published)
                     ->action(fn (Level $record) => $record->update(['is_published' => true])),
 
                 Tables\Actions\Action::make('unpublish')
+                    ->label('Unpublish')
                     ->icon('heroicon-o-x-circle')
                     ->color('warning')
-                    ->iconButton()
-                    ->tooltip('Unpublish')
                     ->visible(fn (Level $record) => $record->is_published)
                     ->action(fn (Level $record) => $record->update(['is_published' => false])),
             ])
