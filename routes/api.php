@@ -15,6 +15,9 @@ Route::get('/user', function (Request $request) {
 Route::prefix('game')->group(function () {
     // Authentication
     Route::post('/login', [StudentAuthController::class, 'login']);
+
+    // Admin preview (token validated via cache, no student auth)
+    Route::get('/preview/{token}', [GameController::class, 'previewLevel']);
 });
 
 // Protected game routes (require student authentication)

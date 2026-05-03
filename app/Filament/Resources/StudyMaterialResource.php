@@ -240,6 +240,7 @@ class StudyMaterialResource extends Resource
                     ->dateTime()
                     ->sortable(),
             ])
+            ->defaultSort('created_at', 'desc')
             ->filters([
                 Tables\Filters\SelectFilter::make('status')
                     ->options([

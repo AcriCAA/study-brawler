@@ -11,6 +11,7 @@ use App\Models\StudentProgress;
 use App\Models\Brawler;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 
 class GameController extends Controller
 {
@@ -267,6 +268,44 @@ class GameController extends Controller
         return response()->json([
             'success' => true,
             'data' => ['session_id' => $session->id],
+        ]);
+    }
+
+    public function previewLevel(string $token): JsonResponse
+    {
+        $levelId = Cache::get("preview_level_{$token}");
+
+        if (!$levelId) {
+            return response()->json(['success' => false, 'message' => 'Preview link has expired. Generate a new one from the admin panel.'], 404);
+        }
+
+        $level = Level::with('questions')->findOrFail($levelId);
+
+        $questions = $level->questions->map(function ($question) {
+            return [
+                'id' => $question->id,
+                'question_text' => $question->question_text,
+                'question_type' => $question->question_type,
+                'answers' => $question->getAllAnswers(),
+                'correct_answer' => $question->correct_answer,
+                'points' => $question->points,
+                'enemy_sprite' => $question->enemy_sprite,
+                'hint' => $question->hint,
+            ];
+        });
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'id' => $level->id,
+                'title' => $level->title,
+                'description' => $level->description,
+                'difficulty' => $level->difficulty,
+                'background_theme' => $level->background_theme,
+                'map_key' => $level->map_key,
+                'bgm_key' => $level->bgm_key,
+                'questions' => $questions,
+            ],
         ]);
     }
 

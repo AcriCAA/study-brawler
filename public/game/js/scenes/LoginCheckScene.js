@@ -17,21 +17,64 @@ class LoginCheckScene extends Phaser.Scene {
         bg.fillGradientStyle(0x1a1a2e, 0x1a1a2e, 0x16213e, 0x16213e, 1);
         bg.fillRect(0, 0, width, height);
 
-        // Loading text
-        this.add.text(width / 2, height / 2, 'Checking login...', {
+        this.statusText = this.add.text(width / 2, height / 2, 'Checking login...', {
             fontFamily: 'Arial',
             fontSize: '24px',
             color: '#00ffff',
         }).setOrigin(0.5);
 
-        // Check if we have a token
+        // Admin preview mode — ?preview=TOKEN in URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const previewToken = urlParams.get('preview');
+        if (previewToken) {
+            this.handleAdminPreview(previewToken);
+            return;
+        }
+
+        // Normal login check
         if (!GameConfig.isLoggedIn()) {
             this.scene.start('LoginScene');
             return;
         }
 
-        // Verify token with server
         this.verifyToken();
+    }
+
+    async handleAdminPreview(token) {
+        this.statusText.setText('Loading admin preview...');
+
+        try {
+            const response = await fetch(GameConfig.API_URL + '/preview/' + token);
+            const data = await response.json();
+
+            if (data.success) {
+                this.registry.set('currentLevel', data.data);
+                this.registry.set('previewMode', true);
+                this.registry.set('currentStudent', {
+                    id: 0,
+                    name: 'Admin Preview',
+                    username: 'admin',
+                    avatar: null,
+                    total_stars: 0,
+                    total_xp: 0,
+                    selected_brawler: 'sparky',
+                    unlocked_brawlers: ['sparky'],
+                    progress: [],
+                });
+                // Clean up URL so a refresh doesn't re-use the token
+                window.history.replaceState({}, '', '/game');
+                this.scene.start('BootScene');
+            } else {
+                this.statusText.setText(data.message || 'Preview link expired.');
+                this.statusText.setColor('#ff6666');
+                this.time.delayedCall(3000, () => this.scene.start('LoginScene'));
+            }
+        } catch (error) {
+            console.error('Admin preview failed:', error);
+            this.statusText.setText('Failed to load preview. Please try again.');
+            this.statusText.setColor('#ff6666');
+            this.time.delayedCall(3000, () => this.scene.start('LoginScene'));
+        }
     }
 
     async verifyToken() {
@@ -40,11 +83,9 @@ class LoginCheckScene extends Phaser.Scene {
             const data = await response.json();
 
             if (data.success) {
-                // Token is valid, store student data and proceed
                 this.registry.set('currentStudent', data.data);
                 this.scene.start('BootScene');
             } else {
-                // Token is invalid
                 GameConfig.clearToken();
                 this.scene.start('LoginScene');
             }

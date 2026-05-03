@@ -2581,6 +2581,8 @@ class GameScene extends Phaser.Scene {
     }
 
     async saveProgress(stars, completed) {
+        if (this.registry.get('previewMode')) return;
+
         const student = this.registry.get('currentStudent');
         if (!student) return;
 

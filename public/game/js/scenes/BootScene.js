@@ -312,12 +312,19 @@ class BootScene extends Phaser.Scene {
 
     async loadGameData() {
         const proceedToNextScene = () => {
-            if (!this.registry.get('selectedCharacter')) {
+            if (this.registry.get('previewMode')) {
+                this.scene.start('GameScene');
+            } else if (!this.registry.get('selectedCharacter')) {
                 this.scene.start('CharacterSelectScene');
             } else {
                 this.scene.start('MenuScene');
             }
         };
+
+        if (this.registry.get('previewMode')) {
+            proceedToNextScene();
+            return;
+        }
 
         try {
             // Fetch levels for this student (using authenticated request)
